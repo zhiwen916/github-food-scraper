@@ -400,10 +400,14 @@
 
       const startLat = realDeviceGPS ? realDeviceGPS.lat : activeCenterPos.lat;
       const startLng = realDeviceGPS ? realDeviceGPS.lng : activeCenterPos.lng;
-      
-      // 依交通模式切換導航參數：walking (步行) 或 transit (大眾運輸)
       const travelModeParam = currentMode === 'transit' ? 'transit' : 'walking';
-      const navUrl = `https://www.google.com/maps/dir/?api=1&origin=${startLat},${startLng}&destination=${location.lat},${location.lng}&travelmode=${travelModeParam}`;
+
+      // 🌟 優先以「店名」導航，並在後方附帶經緯度作為備援防線
+      // 格式：encodeURIComponent("店名 (緯度,經度)")
+      const destinationQuery = encodeURIComponent(`${place.name} (${location.lat},${location.lng})`);
+
+      // 產生 Google 地圖通用導航網址
+      const navUrl = `https://www.google.com/maps/dir/?api=1&origin=${startLat},${startLng}&destination=${destinationQuery}&travelmode=${travelModeParam}`;
 
       const btnLabel = currentMode === 'transit' ? "搭車導航 (公車 / 捷運)" : "開始步行導航";
       const btnClass = currentMode === 'transit' ? "nav-transit" : "nav-walking";
