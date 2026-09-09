@@ -12,6 +12,24 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
 GCP_SA_KEY = os.environ.get("GCP_SA_KEY")
 
+# 定義各國標準標題列
+HEADERS_CONFIG = {
+    "France": ["城市", "店名", "類別", "在地必點招牌", "公會/評鑑認證", "探訪秘訣", "地址", "來源連結", "抓取日期"],
+    "Italy": ["城市", "店名", "類別", "在地必點招牌", "慢食/紅蝦認證", "探訪秘訣", "地址", "來源連結", "抓取日期"],
+    "Japan": ["城市/區域", "店名", "類別", "在地必點招牌", "Tabelog/雜誌認證", "探訪秘訣", "鄰近車站/地址", "來源連結", "抓取日期"],
+    "Taiwan": ["縣市/區域", "店名", "類別", "在地必點招牌", "500碗盤/名老店", "探訪秘訣", "地址/所在市場", "來源連結", "抓取日期"]
+}
+
+def get_or_create_worksheet(sh, country):
+    try:
+        return sh.worksheet(country)
+    except gspread.exceptions.WorksheetNotFound:
+        # 分頁不存在時自動建立，並寫入該國專屬標題列
+        ws = sh.add_worksheet(title=country, rows=100, cols=10)
+        headers = HEADERS_CONFIG.get(country, ["城市", "店名", "類別", "在地必點招牌", "認證", "探訪秘訣", "地址", "來源連結", "抓取日期"])
+        ws.append_row(headers)
+        return ws
+
 RSS_FEEDS = [
     # --- 法國 ---
     {"country": "France", "name": "Le Fooding", "url": "https://lefooding.com/feed"},
