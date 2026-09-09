@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>私房 7 分鐘步行好店地圖</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1a73e8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; width: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+
+    /* 頂部狀態列 */
+    .status-bar {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      padding: 10px 14px;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      z-index: 10;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .status-badge {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #fbbc05;
+      margin-right: 6px;
+    }
+    .re-locate-btn {
+      background: #1a73e8;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* 點擊標記後的資訊卡片 */
+    .poi-card {
+      padding: 4px;
+      max-width: 260px;
+    }
+    .poi-card h3 {
+      font-size: 16px;
+      margin-bottom: 4px;
+      color: #1a73e8;
+    }
+    .badge-tag {
+      display: inline-block;
+      background: #e8f0fe;
+      color: #1967d2;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .poi-card .detail {
+      font-size: 12px;
+      color: #444;
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+    .nav-button {
+      display: block;
+      width: 100%;
+      text-align: center;
+      background: #1a73e8;
+      color: #ffffff !important;
+      text-decoration: none;
+      padding: 8px 0;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="status-bar">
+    <div><span class="status-badge" id="statusDot"></span><span id="statusText">GPS 定位中...</span></div>
+    <button class="re-locate-btn" onclick="startApp()">重新定位</button>
+  </div>
+
+  <div id="map"></div>
+
+  <script>
+    // 🔴 替換為你的 Apps Script 網頁應用程式網址
+    const GAS_API_URL = "YOUR_GAS_API_URL";
+    
+    // 7 分鐘步行距離（約 500 公尺）
+    const SEARCH_RADIUS_METERS = 500;
+
+    let map;
+    let userMarker;
+    let circleRange;
+    let infoWindow;
+    let geocoder;
+    let currentPos = null;
+
+    function initMap() {
+      infoWindow = new google.maps.InfoWindow();
+      geocoder = new google.maps.Geocoder();
+
+      map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 16.5,
+        center: { lat: 25.0339, lng: 121.5644 },
+        disableDefaultUI: false,
+        zoomControl: true,
+        mapTypeControl: false,
+        streetViewControl: false
+      });
+
+      startApp();
+    }
+
+    // 計算兩個經緯度之間的直線距離（公尺）
+    function getDistanceMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371e3;
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    async function startApp() {
+      const statusText = document.getElementById("statusText");
+      const statusDot = document.getElementById("statusDot");
+
+      statusText.innerText = "正在取得 GPS 定位...";
+      statusDot.style.background = "#fbbc05";
+
+      if (!navigator.geolocation) {
+        alert("瀏覽器不支援定位功能");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        currentPos = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        };
+
+        map.setCenter(currentPos);
+        statusText.innerText = "載入私房好店中...";
+
+        // 標記自身位置
+        if (userMarker) userMarker.setMap(null);
+        userMarker = new google.maps.Marker({
+          position: currentPos,
+          map: map,
+          title: "目前位置",
+          zIndex: 999,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: "#1a73e8",
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 3
+          }
+        });
+
+        // 繪製 500 公尺（7 分鐘步行圈）
+        if (circleRange) circleRange.setMap(null);
+        circleRange = new google.maps.Circle({
+          strokeColor: "#1a73e8",
+          strokeOpacity: 0.35,
+          strokeWeight: 1.5,
+          fillColor: "#1a73e8",
+          fillOpacity: 0.08,
+          map: map,
+          center: currentPos,
+          radius: SEARCH_RADIUS_METERS
+        });
+
+        // 向 GAS API 請求試算表中的私房好店清單
+        try {
+          const res = await fetch(GAS_API_URL);
+          const places = await res.json();
+
+          let countInRange = 0;
+
+          for (const place of places) {
+            // 使用 Google Geocoder 將地址轉換為座標
+            geocoder.geocode({ address: place.address }, (results, status) => {
+              if (status === "OK" && results[0]) {
+                const loc = results[0].geometry.location;
+                const dist = getDistanceMeters(currentPos.lat, currentPos.lng, loc.lat(), loc.lng());
+
+                // 篩選步行 500 公尺內的店家
+                if (dist <= SEARCH_RADIUS_METERS) {
+                  countInRange++;
+                  createPlaceMarker(place, loc, Math.round(dist));
+                }
+              }
+            });
+          }
+
+          statusText.innerText = `步行 7 分鐘內探索完畢`;
+          statusDot.style.background = "#34a853";
+        } catch (err) {
+          statusText.innerText = "資料庫載入失敗";
+          statusDot.style.background = "#ea4335";
+        }
+      }, () => {
+        statusText.innerText = "請允許 GPS 定位權限";
+        statusDot.style.background = "#ea4335";
+      }, { enableHighAccuracy: true });
+    }
+
+    function createPlaceMarker(place, location, distMeters) {
+      const marker = new google.maps.Marker({
+        map: map,
+        position: location,
+        title: place.name,
+        icon: {
+          url: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png"
+        }
+      });
+
+      // 產生喚起外部 Google 地圖步行導航的 URL
+      const navUrl = `https://www.google.com/maps/dir/?api=1&origin=${currentPos.lat},${currentPos.lng}&destination=${location.lat()},${location.lng()}&travelmode=walking`;
+
+      const content = `
+        <div class="poi-card">
+          <h3>${place.name}</h3>
+          <div class="badge-tag">${place.badge || place.category}</div>
+          <div class="detail">🥖 <b>必點</b>：${place.must_try}</div>
+          <div class="detail">💡 <b>秘訣</b>：${place.tip}</div>
+          <div class="detail" style="color:#666;">🚶 距離約 ${distMeters} 公尺</div>
+          <a class="nav-button" href="${navUrl}" target="_blank" rel="noopener">
+            開始 Google 步行導航
+          </a>
+        </div>
+      `;
+
+      marker.addListener("click", () => {
+        infoWindow.setContent(content);
+        infoWindow.open(map, marker);
+      });
+    }
+  </script>
+
+  <!-- 載入 Google Maps API -->
+  <script 
+    src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap" 
+    async defer>
+  </script>
+</body>
+</html>
