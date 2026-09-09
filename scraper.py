@@ -6,6 +6,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from google import genai
 from google.genai import types
+from pydantic import BaseModel, Field
 
 # ================= 全域設定與來源清單 =================
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -20,16 +21,15 @@ HEADERS_CONFIG = {
     "Taiwan": ["縣市/區域", "店名", "類別", "在地必點招牌", "500碗盤/名老店", "探訪秘訣", "地址/所在市場", "來源連結", "抓取日期"]
 }
 
-def get_or_create_worksheet(sh, country):
-    try:
-        return sh.worksheet(country)
-    except gspread.exceptions.WorksheetNotFound:
-        # 分頁不存在時自動建立，並寫入該國專屬標題列
-        ws = sh.add_worksheet(title=country, rows=100, cols=10)
-        headers = HEADERS_CONFIG.get(country, ["城市", "店名", "類別", "在地必點招牌", "認證", "探訪秘訣", "地址", "來源連結", "抓取日期"])
-        ws.append_row(headers)
-        print(f"✨ 已為 [{country}] 自動建立新工作表並初始化標題列！")
-        return ws
+# ================= Pydantic 結構定義（徹底解決 additionalProperties 錯誤） =================
+class FoodPlace(BaseModel):
+    city: str = Field(description="城市或區域")
+    name: str = Field(description="店家原文名稱")
+    category: str = Field(description="店家類別")
+    must_try: str = Field(description="在地必點招牌")
+    badge: str = Field(description="在地認證或獲選指南依據")
+    tip: str = Field(description="探訪秘訣或點餐細節")
+    address: str = Field(description="地址或鄰近地標/車站")
 
 RSS_FEEDS = [
     # --- 法國 ---
@@ -79,7 +79,6 @@ RSS_FEEDS = [
     {"country": "Taiwan", "name": "Reddit Taiwan Food", "url": "https://www.reddit.com/r/taiwan/search.rss?q=breakfast+OR+restaurant+OR+food+stall&sort=new&restrict_sr=on"}
 ]
 
-# ================= 初始化 Gemini API 客戶端 =================
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 def analyze_with_gemini(country: str, title: str, content: str):
@@ -97,12 +96,11 @@ def analyze_with_gemini(country: str, title: str, content: str):
 {country_rules.get(country, "")}
 
 【輸出規定】
-僅萃取符合標準的實體店家，輸出為 JSON 陣列。若無符合者請回傳 []。"""
+僅萃取符合標準的實體店家。若文章純屬新聞、專題未推薦實體店，請回傳空陣列 []。"""
 
     prompt = f"文章標題：{title}\n文章內容：{content[:3500]}"
 
     try:
-        # 已修正為標準穩定的 gemini-2.5-flash
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt,
@@ -110,15 +108,16 @@ def analyze_with_gemini(country: str, title: str, content: str):
                 system_instruction=system_instruction,
                 temperature=0.1,
                 response_mime_type="application/json",
-                response_schema=list[dict]
+                response_schema=list[FoodPlace]
             )
         )
-        return json.loads(response.text)
+        data = json.loads(response.text)
+        return data if isinstance(data, list) else []
     except Exception as e:
         print(f"Gemini 分析失敗: {e}")
         return []
 
-# ================= 試算表操作 =================
+# ================= 試算表快取與操作模組 =================
 def setup_google_sheet():
     creds_info = json.loads(GCP_SA_KEY)
     scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -126,21 +125,38 @@ def setup_google_sheet():
     gc = gspread.authorize(creds)
     return gc.open_by_key(SPREADSHEET_ID)
 
+def get_or_create_worksheet(sh, country):
+    try:
+        return sh.worksheet(country)
+    except gspread.exceptions.WorksheetNotFound:
+        ws = sh.add_worksheet(title=country, rows=100, cols=10)
+        headers = HEADERS_CONFIG.get(country, ["城市", "店名", "類別", "在地必點招牌", "認證", "探訪秘訣", "地址", "來源連結", "抓取日期"])
+        ws.append_row(headers)
+        print(f"✨ 已為 [{country}] 自動建立新工作表並初始化標題列！")
+        return ws
+
 def main():
     sh = setup_google_sheet()
     today_str = datetime.date.today().strftime("%Y-%m-%d")
+
+    # 快取各工作表物件與現有 URL，避免重複請求觸發 429 頻率限制
+    worksheets = {}
+    existing_urls_cache = {}
 
     for feed in RSS_FEEDS:
         country = feed["country"]
         name = feed["name"]
         url = feed["url"]
 
-        # 已修正：改呼叫 get_or_create_worksheet 確保全自動建表與寫入標題
-        worksheet = get_or_create_worksheet(sh, country)
+        # 每個國家只在第一次存取時向 Google 請求一次
+        if country not in worksheets:
+            ws = get_or_create_worksheet(sh, country)
+            worksheets[country] = ws
+            col_values = ws.col_values(8)
+            existing_urls_cache[country] = set(col_values[1:]) if len(col_values) > 1 else set()
 
-        # 讀取第 8 欄（來源連結）進行去重
-        col_values = worksheet.col_values(8)
-        existing_urls = set(col_values[1:]) if len(col_values) > 1 else set()
+        worksheet = worksheets[country]
+        existing_urls = existing_urls_cache[country]
 
         print(f"[{country}] 正在讀取 RSS: {name}")
         parsed_feed = feedparser.parse(url)
