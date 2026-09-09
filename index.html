@@ -74,16 +74,27 @@
       align-items: center;
     }
     .time-opt {
-      flex: 1 1 auto;      /* 依文字長度自動彈性伸展 */
+      flex: 1 1 auto;
       text-align: center;
-      padding: 6px 4px;    /* 縮小左右內邊距以擠出空間 */
-      font-size: 11px;     /* 微調字級以適應所有窄螢幕手機 */
+      padding: 6px 3px;
+      font-size: 11px;
       font-weight: bold;
       color: #5f6368;
       border-radius: 6px;
       cursor: pointer;
       user-select: none;
       transition: all 0.2s;
+      display: flex;             /* 加入彈性盒佈局 */
+      align-items: center;       /* 圖示與文字垂直居中 */
+      justify-content: center;
+      gap: 2px;                  /* 圖示與文字間距 */
+    }
+    
+    /* 🌟 人與公車圖示獨立放大 */
+    .time-opt .icon {
+      font-size: 15px;           /* 圖示放大至 15px (原文字約 11px) */
+      line-height: 1;
+      display: inline-block;
     }
     .time-opt.active {
       background: #ffffff;
@@ -165,12 +176,12 @@
       <button class="action-btn" onclick="resetToCurrentGPS()">回到目前位置</button>
     </div>
     
-    <!-- 步行與大眾運輸模式切換（精簡文字避免折行） -->
+    <!-- 步行與大眾運輸模式切換（圖示放大版） -->
     <div class="time-selector">
-      <div class="time-opt active" onclick="setMode('walk', 7, 500, 16.5, this)">🚶 7分</div>
-      <div class="time-opt" onclick="setMode('walk', 10, 750, 16.0, this)">🚶 10分</div>
-      <div class="time-opt" onclick="setMode('walk', 15, 1100, 15.5, this)">🚶 15分</div>
-      <div class="time-opt transit-opt" onclick="setMode('transit', 30, 5000, 13.5, this)">🚌 捷運/公車 30分</div>
+      <div class="time-opt active" onclick="setMode('walk', 7, 500, 16.5, this)"><span class="icon">🚶</span>7分</div>
+      <div class="time-opt" onclick="setMode('walk', 10, 750, 16.0, this)"><span class="icon">🚶</span>10分</div>
+      <div class="time-opt" onclick="setMode('walk', 15, 1100, 15.5, this)"><span class="icon">🚶</span>15分</div>
+      <div class="time-opt transit-opt" onclick="setMode('transit', 30, 5000, 13.5, this)"><span class="icon">🚌</span>捷運/公車 30分</div>
     </div>
 
     <!-- 操作提示 -->
