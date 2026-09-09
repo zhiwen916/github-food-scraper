@@ -61,7 +61,7 @@
       cursor: pointer;
     }
 
-    /* 步行時間切換藥丸標籤 (Pill Tabs) */
+    /* 步行時間切換標籤 */
     .time-selector {
       display: flex;
       background: #f1f3f4;
@@ -85,6 +85,20 @@
       background: #ffffff;
       color: #1a73e8;
       box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    }
+
+    /* 新增：操作指引提示欄 */
+    .hint-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eef3fc;
+      border: 1px dashed #c2d7fa;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 11px;
+      color: #1a73e8;
+      font-weight: 500;
     }
 
     /* POI 資訊卡片 */
@@ -145,6 +159,11 @@
       <div class="time-opt" onclick="setWalkingTime(10, 750, this)">10 分鐘 (750m)</div>
       <div class="time-opt" onclick="setWalkingTime(15, 1100, this)">15 分鐘 (1.1km)</div>
     </div>
+
+    <!-- 操作提示 -->
+    <div class="hint-bar">
+      💡 點擊地圖任一處，或長按拖曳藍色圓點即可更改搜尋中心
+    </div>
   </div>
 
   <div id="map"></div>
@@ -158,13 +177,12 @@
     let infoWindow;
     let geocoder;
     
-    // 狀態變數
-    let searchRadius = 500; // 預設 7 分鐘 (500m)
+    let searchRadius = 500;
     let selectedMinutes = 7;
-    let activeCenterPos = null; // 當前探索圓心 (可手動拖曳或點選)
-    let realDeviceGPS = null;   // 真實 GPS 位置 (導航起點)
-    let allCachedPlaces = [];   // 快取試算表好店資料
-    let currentStoreMarkers = []; // 當前繪製在地圖上的店家標記
+    let activeCenterPos = null;
+    let realDeviceGPS = null;
+    let allCachedPlaces = [];
+    let currentStoreMarkers = [];
 
     function initMap() {
       infoWindow = new google.maps.InfoWindow();
@@ -179,7 +197,7 @@
         streetViewControl: false
       });
 
-      // 支援在地圖任意處「點擊」快速將圓心移到該處
+      // 點擊地圖任一處手動換點
       map.addListener("click", (e) => {
         updateSearchCenter(e.latLng);
       });
@@ -187,7 +205,6 @@
       startApp();
     }
 
-    // 計算經緯度距離 (公尺)
     function getDistanceMeters(lat1, lon1, lat2, lon2) {
       const R = 6371e3;
       const φ1 = lat1 * Math.PI / 180;
@@ -205,7 +222,6 @@
       document.getElementById("statusDot").style.background = color;
     }
 
-    // 切換步行時間
     function setWalkingTime(minutes, meters, elem) {
       selectedMinutes = minutes;
       searchRadius = meters;
@@ -233,7 +249,6 @@
         map.setCenter(activeCenterPos);
         setupCenterMarkerAndCircle(activeCenterPos);
 
-        // 載入試算表資料
         await fetchStoreData();
         filterAndRenderStores();
       }, () => {
@@ -244,7 +259,6 @@
       }, { enableHighAccuracy: true });
     }
 
-    // 設定可拖曳中心錨點與步行圈
     function setupCenterMarkerAndCircle(latLng) {
       if (centerMarker) centerMarker.setMap(null);
       if (circleRange) circleRange.setMap(null);
@@ -252,8 +266,8 @@
       centerMarker = new google.maps.Marker({
         position: latLng,
         map: map,
-        draggable: true, // 允許手動拖曳選點
-        title: "拖曳我或點擊地圖以更改搜尋中心",
+        draggable: true,
+        title: "拖曳我可更改搜尋中心",
         zIndex: 999,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
@@ -265,7 +279,6 @@
         }
       });
 
-      // 拖曳結束時更新搜尋中心
       centerMarker.addListener("dragend", (e) => {
         updateSearchCenter(e.latLng);
       });
@@ -307,7 +320,6 @@
         const res = await fetch(GAS_API_URL);
         const places = await res.json();
 
-        // 預先透過 Geocoder 解析並快取座標
         allCachedPlaces = [];
         const geocodePromises = places.map(place => {
           return new Promise((resolve) => {
@@ -328,11 +340,9 @@
       }
     }
 
-    // 根據當前圓心與選定的半徑篩選出店家並標記
     function filterAndRenderStores() {
       if (!activeCenterPos) return;
 
-      // 清除先前的店家標記
       currentStoreMarkers.forEach(m => m.setMap(null));
       currentStoreMarkers = [];
 
@@ -358,7 +368,6 @@
         }
       });
 
-      // 導航起點：若有真實 GPS 則以真實 GPS 為起點，否則以手動點選點為起點
       const startLat = realDeviceGPS ? realDeviceGPS.lat : activeCenterPos.lat;
       const startLng = realDeviceGPS ? realDeviceGPS.lng : activeCenterPos.lng;
       const navUrl = `https://www.google.com/maps/dir/?api=1&origin=${startLat},${startLng}&destination=${location.lat},${location.lng}&travelmode=walking`;
