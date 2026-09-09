@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>私房步行好店雷達</title>
+  <title>私房美食探索雷達</title>
   
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1a73e8">
@@ -15,7 +15,7 @@
     html, body { height: 100%; width: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
-    /* 頂部浮動控制面板 */
+    /* 頂部控制面板 */
     .control-panel {
       position: absolute;
       top: 12px;
@@ -23,7 +23,7 @@
       right: 12px;
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(8px);
-      padding: 10px 14px;
+      padding: 12px 14px;
       border-radius: 14px;
       box-shadow: 0 4px 18px rgba(0,0,0,0.15);
       z-index: 10;
@@ -37,19 +37,20 @@
       align-items: center;
     }
     .status-wrap {
-      font-size: 16px;       /* 原為 13px，可依喜好調整為 15px 或 16px */
-      font-weight: 700;      /* 改為 700 粗體，視覺更清晰 */
-      color: #202124;        /* 深灰黑色，提升對比度 */
+      font-size: 15px;
+      font-weight: 700;
+      color: #202124;
       display: flex;
       align-items: center;
     }
     .status-badge {
       display: inline-block;
-      width: 9px;
-      height: 9px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       background: #fbbc05;
-      margin-right: 6px;
+      margin-right: 8px;
+      flex-shrink: 0;
     }
     .action-btn {
       background: #1a73e8;
@@ -62,7 +63,7 @@
       cursor: pointer;
     }
 
-    /* 步行時間切換標籤 */
+    /* 時間與交通工具切換標籤 */
     .time-selector {
       display: flex;
       background: #f1f3f4;
@@ -87,8 +88,11 @@
       color: #1a73e8;
       box-shadow: 0 1px 4px rgba(0,0,0,0.15);
     }
+    .time-opt.transit-opt.active {
+      color: #e37400; /* 大眾運輸模式使用橙色高亮 */
+    }
 
-    /* 新增：操作指引提示欄 */
+    /* 操作指引條 */
     .hint-bar {
       display: flex;
       align-items: center;
@@ -132,7 +136,6 @@
       display: block;
       width: 100%;
       text-align: center;
-      background: #1a73e8;
       color: #ffffff !important;
       text-decoration: none;
       padding: 8px 0;
@@ -140,6 +143,12 @@
       font-size: 13px;
       font-weight: bold;
       margin-top: 8px;
+    }
+    .nav-walking {
+      background: #1a73e8;
+    }
+    .nav-transit {
+      background: #e37400;
     }
   </style>
 </head>
@@ -154,16 +163,17 @@
       <button class="action-btn" onclick="resetToCurrentGPS()">回到目前位置</button>
     </div>
     
-    <!-- 步行時間切換 -->
+    <!-- 步行與大眾運輸模式切換 -->
     <div class="time-selector">
-      <div class="time-opt active" onclick="setWalkingTime(7, 500, this)">7 分鐘 (500m)</div>
-      <div class="time-opt" onclick="setWalkingTime(10, 750, this)">10 分鐘 (750m)</div>
-      <div class="time-opt" onclick="setWalkingTime(15, 1100, this)">15 分鐘 (1.1km)</div>
+      <div class="time-opt active" onclick="setMode('walk', 7, 500, 16.5, this)">🚶 7 分鐘</div>
+      <div class="time-opt" onclick="setMode('walk', 10, 750, 16.0, this)">🚶 10 分鐘</div>
+      <div class="time-opt" onclick="setMode('walk', 15, 1100, 15.5, this)">🚶 15 分鐘</div>
+      <div class="time-opt transit-opt" onclick="setMode('transit', 30, 5000, 13.5, this)">🚌 捷運公車 30分</div>
     </div>
 
     <!-- 操作提示 -->
     <div class="hint-bar">
-      💡 直接點擊地圖任一處，或長按藍色圓點後拖曳，即可更改搜尋中心
+      💡 點擊地圖任一處，或長按拖曳藍色圓點即可更改搜尋中心
     </div>
   </div>
 
@@ -178,10 +188,12 @@
     let infoWindow;
     let geocoder;
     
-    let searchRadius = 500;
+    // 狀態設定
+    let currentMode = 'walk';       // 'walk' 或 'transit'
+    let searchRadius = 500;        // 預設 500 公尺 (步行 7 分鐘)[cite: 1]
     let selectedMinutes = 7;
-    let activeCenterPos = null;
-    let realDeviceGPS = null;
+    let activeCenterPos = null;    // 搜尋圓心
+    let realDeviceGPS = null;      // 真實手機位置
     let allCachedPlaces = [];
     let currentStoreMarkers = [];
 
@@ -198,7 +210,7 @@
         streetViewControl: false
       });
 
-      // 點擊地圖任一處手動換點
+      // 點擊地圖任意處手動改設中心點
       map.addListener("click", (e) => {
         updateSearchCenter(e.latLng);
       });
@@ -223,15 +235,29 @@
       document.getElementById("statusDot").style.background = color;
     }
 
-    function setWalkingTime(minutes, meters, elem) {
+    // 切換交通工具與時間半徑
+    function setMode(mode, minutes, meters, targetZoom, elem) {
+      currentMode = mode;
       selectedMinutes = minutes;
       searchRadius = meters;
+
       document.querySelectorAll(".time-opt").forEach(el => el.classList.remove("active"));
       elem.classList.add("active");
 
+      // 動態更新半徑圈樣式（大眾運輸用橙色表示）
       if (circleRange) {
         circleRange.setRadius(searchRadius);
+        circleRange.setOptions({
+          strokeColor: mode === 'transit' ? '#e37400' : '#1a73e8',
+          fillColor: mode === 'transit' ? '#e37400' : '#1a73e8'
+        });
       }
+
+      // 自動調整地圖縮放比例
+      if (map && activeCenterPos) {
+        map.setZoom(targetZoom);
+      }
+
       filterAndRenderStores();
     }
 
@@ -239,7 +265,7 @@
       setStatus("取得 GPS 定位中...", "#fbbc05");
 
       if (!navigator.geolocation) {
-        alert("瀏覽器不支援定位");
+        alert("瀏覽器不支援定位功能");
         return;
       }
 
@@ -285,10 +311,10 @@
       });
 
       circleRange = new google.maps.Circle({
-        strokeColor: "#1a73e8",
+        strokeColor: currentMode === 'transit' ? '#e37400' : '#1a73e8',
         strokeOpacity: 0.35,
         strokeWeight: 1.5,
-        fillColor: "#1a73e8",
+        fillColor: currentMode === 'transit' ? '#e37400' : '#1a73e8',
         fillOpacity: 0.08,
         map: map,
         center: latLng,
@@ -356,7 +382,8 @@
         }
       });
 
-      setStatus(`步行 ${selectedMinutes} 分鐘內發現 ${count} 間好店`, "#34a853");
+      const modeText = currentMode === 'transit' ? "大眾運輸 30 分鐘內" : `步行 ${selectedMinutes} 分鐘內`;
+      setStatus(`${modeText} 發現 ${count} 間好店`, "#34a853");
     }
 
     function createPlaceMarker(place, location, distMeters) {
@@ -365,13 +392,22 @@
         position: location,
         title: place.name,
         icon: {
-          url: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png"
+          url: currentMode === 'transit' 
+            ? "https://maps.google.com/mapfiles/ms/icons/blue-dot.png" 
+            : "https://maps.google.com/mapfiles/ms/icons/orange-dot.png"
         }
       });
 
       const startLat = realDeviceGPS ? realDeviceGPS.lat : activeCenterPos.lat;
       const startLng = realDeviceGPS ? realDeviceGPS.lng : activeCenterPos.lng;
-      const navUrl = `https://www.google.com/maps/dir/?api=1&origin=${startLat},${startLng}&destination=${location.lat},${location.lng}&travelmode=walking`;
+      
+      // 依交通模式切換導航參數：walking (步行) 或 transit (大眾運輸)
+      const travelModeParam = currentMode === 'transit' ? 'transit' : 'walking';
+      const navUrl = `https://www.google.com/maps/dir/?api=1&origin=${startLat},${startLng}&destination=${location.lat},${location.lng}&travelmode=${travelModeParam}`;
+
+      const btnLabel = currentMode === 'transit' ? "搭車導航 (公車 / 捷運)" : "開始步行導航";
+      const btnClass = currentMode === 'transit' ? "nav-transit" : "nav-walking";
+      const distLabel = distMeters >= 1000 ? `${(distMeters / 1000).toFixed(1)} 公里` : `${distMeters} 公尺`;
 
       const content = `
         <div class="poi-card">
@@ -379,9 +415,9 @@
           <div class="badge-tag">${place.badge || place.category}</div>
           <div class="detail">🥖 <b>必點</b>：${place.must_try}</div>
           <div class="detail">💡 <b>秘訣</b>：${place.tip}</div>
-          <div class="detail" style="color:#666;">🚶 距離搜尋中心約 ${distMeters} 公尺</div>
-          <a class="nav-button" href="${navUrl}" target="_blank" rel="noopener">
-            開始步行導航
+          <div class="detail" style="color:#666;">📍 直線距離約 ${distLabel}</div>
+          <a class="nav-button ${btnClass}" href="${navUrl}" target="_blank" rel="noopener">
+            ${btnLabel}
           </a>
         </div>
       `;
