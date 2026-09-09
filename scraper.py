@@ -28,6 +28,7 @@ def get_or_create_worksheet(sh, country):
         ws = sh.add_worksheet(title=country, rows=100, cols=10)
         headers = HEADERS_CONFIG.get(country, ["城市", "店名", "類別", "在地必點招牌", "認證", "探訪秘訣", "地址", "來源連結", "抓取日期"])
         ws.append_row(headers)
+        print(f"✨ 已為 [{country}] 自動建立新工作表並初始化標題列！")
         return ws
 
 RSS_FEEDS = [
@@ -101,8 +102,9 @@ def analyze_with_gemini(country: str, title: str, content: str):
     prompt = f"文章標題：{title}\n文章內容：{content[:3500]}"
 
     try:
+        # 已修正為標準穩定的 gemini-2.5-flash
         response = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model="gemini-2.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
@@ -133,14 +135,12 @@ def main():
         name = feed["name"]
         url = feed["url"]
 
-        try:
-            worksheet = sh.worksheet(country)
-        except gspread.exceptions.WorksheetNotFound:
-            print(f"工作表 {country} 不存在，跳過。")
-            continue
+        # 已修正：改呼叫 get_or_create_worksheet 確保全自動建表與寫入標題
+        worksheet = get_or_create_worksheet(sh, country)
 
         # 讀取第 8 欄（來源連結）進行去重
-        existing_urls = set(worksheet.col_values(8)[1:])
+        col_values = worksheet.col_values(8)
+        existing_urls = set(col_values[1:]) if len(col_values) > 1 else set()
 
         print(f"[{country}] 正在讀取 RSS: {name}")
         parsed_feed = feedparser.parse(url)
