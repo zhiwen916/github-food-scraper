@@ -18,19 +18,19 @@
 
     header { background: var(--card-bg); padding: 10px 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
     .header-top { display: flex; justify-content: space-between; align-items: center; }
-    .brand { font-weight: 700; font-size: 1.1rem; color: var(--primary-color); }
+    .brand { font-weight: 700; font-size: 1.1rem; color: var(--primary-color); display: flex; align-items: center; gap: 4px; }
     .controls { display: flex; gap: 8px; align-items: center; }
     select, button { padding: 6px 10px; border-radius: 6px; border: 1px solid #ced4da; font-size: 0.85rem; background: #fff; cursor: pointer; }
     
     .btn-gps { background: #1976d2; color: #fff; border: none; font-weight: 600; }
     .btn-gps:active { background: #0d47a1; }
 
-    /* 橫向模式按鈕列 */
+    /* 9/9 橫向雷達滾動按鈕列 */
     .radar-options { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
     .radar-btn { border: 1px solid #ced4da; background: #fff; border-radius: 20px; padding: 4px 12px; font-size: 0.8rem; white-space: nowrap; cursor: pointer; transition: 0.2s; }
     .radar-btn.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); font-weight: 600; }
 
-    /* 提示訊息列 */
+    /* 9/9 操作提示列 */
     .hint-bar { background: #fff8e1; color: #8d6e63; font-size: 0.75rem; padding: 5px 8px; border-radius: 4px; text-align: center; border: 1px solid #ffe082; }
 
     main { display: flex; flex: 1; overflow: hidden; }
@@ -72,10 +72,10 @@
       </div>
     </div>
 
-    <!-- 橫向半徑按鈕區 -->
+    <!-- 9/9 動態產生的橫向雷達選項 -->
     <div class="radar-options" id="radarOptions"></div>
 
-    <!-- 操作提示列 -->
+    <!-- 9/9 提示列 -->
     <div class="hint-bar">
       💡 點擊地圖任一處，或長按拖曳藍色圓點即可更改搜尋中心
     </div>
@@ -91,7 +91,7 @@
 
   <script>
     // ==========================================
-    // ⚙️ 集中設定區：修改此處即可調整時間與半徑
+    // ⚙️ 集中設定區：9/9 原始時間與半徑矩陣
     // ==========================================
     const RADAR_CONFIG = {
       defaultIndex: 0,
@@ -99,7 +99,7 @@
         {
           mode: 'walk',
           minutes: 7,
-          meters: 500,        // 7 分鐘步行約 500 公尺[cite: 1]
+          meters: 500,        // 7 分鐘步行約 500 公尺
           zoom: 16.5,
           icon: '🚶',
           label: '7分'
@@ -136,10 +136,9 @@
     let markers = [];
     let centerMarker = null;
     let centerCircle = null;
-    let currentCenter = { lat: 25.0330, lng: 121.5654 }; // 預設中心點 (台北)
+    let currentCenter = { lat: 25.0330, lng: 121.5654 }; // 預設以台北為中心
     let activeRadarIdx = RADAR_CONFIG.defaultIndex;
 
-    // Haversine 公尺距離計算
     function getDistance(lat1, lon1, lat2, lon2) {
       const R = 6371e3;
       const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
@@ -150,8 +149,8 @@
 
     function initMap() {
       const opt = RADAR_CONFIG.options[activeRadarIdx];
-      
-      // 關鍵設定：gestureHandling: 'greedy' 確保單指即可自由平移地圖，不需要兩指
+
+      // gestureHandling: 'greedy' 確保單指直接滑動平移，不需要兩指
       map = new google.maps.Map(document.getElementById('map'), {
         center: currentCenter,
         zoom: opt.zoom,
@@ -161,7 +160,7 @@
         fullscreenControl: false
       });
 
-      // 建立可拖曳的藍色圓點中心標記
+      // 建立可拖曳的中心藍色圓點
       centerMarker = new google.maps.Marker({
         position: currentCenter,
         map: map,
@@ -178,14 +177,14 @@
         }
       });
 
-      // 1. 長按拖曳藍色圓點後更新中心
+      // 1. 長按拖曳藍色圓點放開時重新計算
       centerMarker.addListener('dragend', function(evt) {
         currentCenter = { lat: evt.latLng.lat(), lng: evt.latLng.lng() };
         updateRadarVisuals(false);
         render();
       });
 
-      // 2. 點擊地圖任一處，直接將藍色圓點瞬移至點擊處
+      // 2. 點擊地圖任一處直接移動藍點至該處
       map.addListener('click', function(evt) {
         currentCenter = { lat: evt.latLng.lat(), lng: evt.latLng.lng() };
         centerMarker.setPosition(currentCenter);
@@ -295,7 +294,7 @@
         const d = Math.round(getDistance(currentCenter.lat, currentCenter.lng, item.lat, item.lng));
         const distanceLabel = ` (距中心 ${d}m · 步行約 ${Math.ceil(d / 75)} 分鐘)`;
 
-        const walkUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}&travelmode=walking`;[cite: 1]
+        const walkUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}&travelmode=walking`;
         const transitUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}&travelmode=transit`;
 
         const card = document.createElement('div');
@@ -329,7 +328,7 @@
     }
   </script>
 
-  <!-- 請將下方 YOUR_ACTUAL_MAPS_KEY 替換為你的 Google Maps API Key -->
-  <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_ACTUAL_MAPS_KEY&callback=initMap"></script>
+  <!-- 關鍵：請將下方的 YOUR_MAPS_API_KEY 替換為你的 Google Maps API 金鑰真實字串 -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_MAPS_API_KEY&callback=initMap"></script>
 </body>
 </html>
