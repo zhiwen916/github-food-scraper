@@ -5,14 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>私房美食探索雷達</title>
   
-  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1a73e8">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; width: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    html, body { height: 100%; width: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
     #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
     /* 頂部控制面板 */
@@ -21,7 +20,7 @@
       top: 12px;
       left: 12px;
       right: 12px;
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255, 255, 255, 0.96);
       backdrop-filter: blur(8px);
       padding: 12px 14px;
       border-radius: 14px;
@@ -48,7 +47,7 @@
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: #fbbc05;
+      background: #34a853;
       margin-right: 8px;
       flex-shrink: 0;
     }
@@ -98,7 +97,7 @@
       color: #e37400;
     }
     .time-opt .icon {
-      font-size: 15px;
+      font-size: 14px;
       line-height: 1;
       display: inline-block;
     }
@@ -108,18 +107,18 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #eef3fc;
-      border: 1px dashed #c2d7fa;
+      background: #fef9e7;
+      border: 1px solid #f9e79f;
       border-radius: 6px;
       padding: 5px 8px;
       font-size: 11px;
-      color: #1a73e8;
+      color: #7d6608;
       font-weight: 500;
     }
 
     /* POI 資訊卡片 */
     .poi-card {
-      padding: 4px;
+      padding: 6px 4px;
       max-width: 260px;
     }
     .poi-card h3 {
@@ -139,7 +138,7 @@
     }
     .poi-card .detail {
       font-size: 12px;
-      color: #444;
+      color: #3c4043;
       margin-bottom: 4px;
       line-height: 1.4;
     }
@@ -165,12 +164,11 @@
     <div class="panel-row">
       <div class="status-wrap">
         <span class="status-badge" id="statusDot"></span>
-        <span id="statusText">GPS 定位中...</span>
+        <span id="statusText">載入私房名單中...</span>
       </div>
       <button class="action-btn" onclick="resetToCurrentGPS()">回到目前位置</button>
     </div>
     
-    <!-- 選單容器（由 JS 根據上方設定動態渲染） -->
     <div class="time-selector" id="timeSelectorContainer"></div>
 
     <div class="hint-bar">
@@ -182,10 +180,10 @@
 
   <script>
     // ==========================================
-    // ⚙️ 集中設定區：修改此處即可調整時間與半徑
+    // ⚙️ 集中設定區：時間與半徑矩陣
     // ==========================================
     const RADAR_CONFIG = {
-      defaultIndex: 0, // 預設選中第幾項 (0 代表第 1 項)
+      defaultIndex: 0,
       options: [
         {
           mode: 'walk',
@@ -214,7 +212,7 @@
         {
           mode: 'transit',
           minutes: 30,
-          meters: 5000,       // 捷運公車 30 分鐘生活圈約 5 公里
+          meters: 5000,       // 捷運公車 30 分鐘約 5 公里
           zoom: 13.5,
           icon: '🚌',
           label: '捷運/公車 30分'
@@ -222,22 +220,19 @@
       ]
     };
 
-    const GAS_API_URL = "__GAS_API_URL__";
-
     let map;
     let centerMarker;
     let circleRange;
     let infoWindow;
     let geocoder;
     
-    // 當前運行狀態
     let activeOption = RADAR_CONFIG.options[RADAR_CONFIG.defaultIndex];
-    let activeCenterPos = null;
+    // 預設以台北大巨蛋/信義區為中心，方便直接命中試算表資料
+    let activeCenterPos = { lat: 25.0422, lng: 121.5600 };
     let realDeviceGPS = null;
     let allCachedPlaces = [];
     let currentStoreMarkers = [];
 
-    // 動態產生按鈕選單
     function renderTimeSelectorUI() {
       const container = document.getElementById("timeSelectorContainer");
       container.innerHTML = "";
@@ -255,13 +250,9 @@
     function selectModeByIndex(index) {
       activeOption = RADAR_CONFIG.options[index];
 
-      // 切換按鈕 active 樣式
       const buttons = document.querySelectorAll(".time-opt");
-      buttons.forEach((btn, i) => {
-        btn.classList.toggle("active", i === index);
-      });
+      buttons.forEach((btn, i) => btn.classList.toggle("active", i === index));
 
-      // 更新半徑圈
       if (circleRange) {
         circleRange.setRadius(activeOption.meters);
         circleRange.setOptions({
@@ -270,7 +261,6 @@
         });
       }
 
-      // 自動縮放地圖視野
       if (map && activeCenterPos) {
         map.setZoom(activeOption.zoom);
       }
@@ -286,17 +276,19 @@
 
       map = new google.maps.Map(document.getElementById("map"), {
         zoom: activeOption.zoom,
-        center: { lat: 25.0339, lng: 121.5644 },
-        disableDefaultUI: false,
-        zoomControl: true,
+        center: activeCenterPos,
+        gestureHandling: 'greedy', // 單指平移
         mapTypeControl: false,
-        streetViewControl: false
+        streetViewControl: false,
+        fullscreenControl: false
       });
 
+      // 點擊地圖任一處更改中心
       map.addListener("click", (e) => {
         updateSearchCenter(e.latLng);
       });
 
+      setupCenterMarkerAndCircle(activeCenterPos);
       startApp();
     }
 
@@ -318,28 +310,20 @@
     }
 
     async function startApp() {
-      setStatus("取得 GPS 定位中...", "#fbbc05");
+      await fetchStoreData();
 
-      if (!navigator.geolocation) {
-        alert("瀏覽器不支援定位功能");
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(async (pos) => {
-        realDeviceGPS = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        activeCenterPos = { ...realDeviceGPS };
-
-        map.setCenter(activeCenterPos);
-        setupCenterMarkerAndCircle(activeCenterPos);
-
-        await fetchStoreData();
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          realDeviceGPS = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          activeCenterPos = { ...realDeviceGPS };
+          map.setCenter(activeCenterPos);
+          updateSearchCenter(activeCenterPos);
+        }, () => {
+          filterAndRenderStores();
+        }, { enableHighAccuracy: true });
+      } else {
         filterAndRenderStores();
-      }, () => {
-        setStatus("請允許定位權限 (預設台北市)", "#ea4335");
-        activeCenterPos = { lat: 25.0339, lng: 121.5644 };
-        setupCenterMarkerAndCircle(activeCenterPos);
-        fetchStoreData().then(() => filterAndRenderStores());
-      }, { enableHighAccuracy: true });
+      }
     }
 
     function setupCenterMarkerAndCircle(latLng) {
@@ -397,16 +381,23 @@
       }
     }
 
+    // 直接讀取由試算表同步產生的 places.json，地址缺經緯度時自動補查
     async function fetchStoreData() {
-      setStatus("載入私房好店中...", "#fbbc05");
+      setStatus("載入私房名單中...", "#fbbc05");
       try {
-        const res = await fetch(GAS_API_URL);
+        const res = await fetch('places.json?v=' + Date.now());
+        if (!res.ok) throw new Error("places.json 不存在");
         const places = await res.json();
 
         allCachedPlaces = [];
         const geocodePromises = places.map(place => {
+          if (place.lat && place.lng) {
+            allCachedPlaces.push(place);
+            return Promise.resolve();
+          }
+          // 若 places.json 尚未帶有經緯度，以地址向 Google 地圖做 Geocoding
           return new Promise((resolve) => {
-            geocoder.geocode({ address: place.address }, (results, status) => {
+            geocoder.geocode({ address: place.address || place.city || "台北市" }, (results, status) => {
               if (status === "OK" && results[0]) {
                 place.lat = results[0].geometry.location.lat();
                 place.lng = results[0].geometry.location.lng();
@@ -418,8 +409,9 @@
         });
 
         await Promise.all(geocodePromises);
+        filterAndRenderStores();
       } catch (err) {
-        setStatus("資料庫載入失敗", "#ea4335");
+        setStatus("請在試算表點擊一鍵同步", "#ea4335");
       }
     }
 
@@ -431,6 +423,7 @@
 
       let count = 0;
       allCachedPlaces.forEach(place => {
+        if (!place.lat || !place.lng) return;
         const dist = getDistanceMeters(activeCenterPos.lat, activeCenterPos.lng, place.lat, place.lng);
         if (dist <= activeOption.meters) {
           count++;
@@ -470,9 +463,9 @@
       const content = `
         <div class="poi-card">
           <h3>${place.name}</h3>
-          <div class="badge-tag">${place.badge || place.category}</div>
-          <div class="detail">🥖 <b>必點</b>：${place.must_try}</div>
-          <div class="detail">💡 <b>秘訣</b>：${place.tip}</div>
+          <div class="badge-tag">${place.badge || place.category || '私房推薦'}</div>
+          ${place.must_try ? `<div class="detail">🥖 <b>必點</b>：${place.must_try}</div>` : ''}
+          ${place.tip ? `<div class="detail">💡 <b>秘訣</b>：${place.tip}</div>` : ''}
           <div class="detail" style="color:#666;">📍 直線距離約 ${distLabel}</div>
           <a class="nav-button ${btnClass}" href="${navUrl}" target="_blank" rel="noopener">
             ${btnLabel}
@@ -489,8 +482,9 @@
     }
   </script>
 
+  <!-- 請將 YOUR_MAPS_API_KEY 替換為你在 GitHub Secret 儲存的 MAPS_API_KEY -->
   <script 
-    src="https://maps.googleapis.com/maps/api/js?key=__MAPS_API_KEY__&callback=initMap" 
+    src="https://maps.googleapis.com/maps/api/js?key=YOUR_MAPS_API_KEY&callback=initMap" 
     async defer>
   </script>
 </body>
