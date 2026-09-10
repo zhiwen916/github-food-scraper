@@ -1,181 +1,141 @@
 import os
 import json
-import datetime
+import time
 import feedparser
-import gspread
-from google.oauth2.service_account import Credentials
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
-# ================= 全域設定與來源清單 =================
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
-GCP_SA_KEY = os.environ.get("GCP_SA_KEY")
-
-# 定義各國標準標題列
-HEADERS_CONFIG = {
-    "France": ["城市", "店名", "類別", "在地必點招牌", "公會/評鑑認證", "探訪秘訣", "地址", "來源連結", "抓取日期"],
-    "Italy": ["城市", "店名", "類別", "在地必點招牌", "慢食/紅蝦認證", "探訪秘訣", "地址", "來源連結", "抓取日期"],
-    "Japan": ["城市/區域", "店名", "類別", "在地必點招牌", "Tabelog/雜誌認證", "探訪秘訣", "鄰近車站/地址", "來源連結", "抓取日期"],
-    "Taiwan": ["縣市/區域", "店名", "類別", "在地必點招牌", "500碗盤/名老店", "探訪秘訣", "地址/所在市場", "來源連結", "抓取日期"]
-}
-
-# ================= Pydantic 結構定義（徹底解決 additionalProperties 錯誤） =================
+# 1. 結構化資料定義
 class FoodPlace(BaseModel):
-    city: str = Field(description="城市或區域")
-    name: str = Field(description="店家原文名稱")
-    category: str = Field(description="店家類別")
-    must_try: str = Field(description="在地必點招牌")
-    badge: str = Field(description="在地認證或獲選指南依據")
-    tip: str = Field(description="探訪秘訣或點餐細節")
-    address: str = Field(description="地址或鄰近地標/車站")
+    city: str = Field(description="城市或地區名稱，如：台北市中山區、Paris 11e、京都烏丸")
+    name: str = Field(description="實體店面名稱")
+    category: str = Field(description="店家料理類別，如：Bistrot、麵包坊、拉麵、小吃")
+    must_try: str = Field(description="在地人必點或評鑑推薦的招牌菜品")
+    badge: str = Field(description="獲得的認證，如：慢食協會推薦、500碗入選、Baguette 競賽首獎")
+    tip: str = Field(description="探訪秘訣或避雷須知，如：需提前預約、僅收現金")
+    address: str = Field(description="完整地址或最近的捷運/地鐵站與路口")
 
-RSS_FEEDS = [
-    # --- 法國 ---
-    {"country": "France", "name": "Le Fooding", "url": "https://lefooding.com/feed"},
-    {"country": "France", "name": "Gault & Millau Actu", "url": "https://fr.gaultmillau.com/fr/rss/news"},
-    {"country": "France", "name": "Le Figaro Restos & Palmarès", "url": "https://www.lefigaro.fr/rss/figaro_gastronomie.xml"},
-    {"country": "France", "name": "Time Out Paris", "url": "https://www.timeout.fr/paris/fr/feed"},
-    {"country": "France", "name": "My Little Paris", "url": "https://www.mylittleparis.com/feed"},
-    {"country": "France", "name": "France Inter (On va déguster)", "url": "https://radiofrance-podcast.net/podcast09/rss_11568.xml"},
-    {"country": "France", "name": "Très Très Bon", "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6P01x66w1o1Fk1vL-bEwEg"},
-    {"country": "France", "name": "La Meilleure Boulangerie (M6)", "url": "https://news.google.com/rss/search?q=La+Meilleure+Boulangerie+de+France+gagnant+when:7d&hl=fr&gl=FR&ceid=FR:fr"},
-    {"country": "France", "name": "Concours Baguette & Croissant", "url": "https://news.google.com/rss/search?q=(Grand+Prix+Baguette+Tradition+OR+Meilleur+Croissant+au+Beurre)+Paris+when:14d&hl=fr&gl=FR&ceid=FR:fr"},
-    {"country": "France", "name": "Sud Ouest (Gastronomie)", "url": "https://www.sudouest.fr/culture-et-loisirs/gastronomie/rss.xml"},
-    {"country": "France", "name": "Ouest-France (Saveurs & Terroir)", "url": "https://news.google.com/rss/search?q=site:ouest-france.fr+(restaurant+OR+creperie+OR+boulangerie)+when:14d&hl=fr&gl=FR&ceid=FR:fr"},
-    {"country": "France", "name": "Le Progrès (Sorties & Resto)", "url": "https://news.google.com/rss/search?q=site:leprogres.fr+(restaurant+OR+bouchon+OR+boulangerie)+when:14d&hl=fr&gl=FR&ceid=FR:fr"},
-    {"country": "France", "name": "Reddit Paris Food", "url": "https://www.reddit.com/r/paris/search.rss?q=restaurant+OR+boulangerie&sort=new&restrict_sr=on"},
-    {"country": "France", "name": "Reddit France Food", "url": "https://www.reddit.com/r/france/search.rss?q=resto+OR+boulangerie&sort=new&restrict_sr=on"},
-
-    # --- 義大利 ---
-    {"country": "Italy", "name": "Slow Food News", "url": "https://www.slowfood.it/feed/"},
-    {"country": "Italy", "name": "Gambero Rosso Storie", "url": "https://www.gamberorosso.it/feed/"},
-    {"country": "Italy", "name": "50 Top Pizza & Italy", "url": "https://news.google.com/rss/search?q=(50+Top+Pizza+OR+50+Top+Italy)+classifica+when:14d&hl=it&gl=IT&ceid=IT:it"},
-    {"country": "Italy", "name": "Accademia Italiana Cucina", "url": "https://news.google.com/rss/search?q=site:accademiaitalianadellacucina.it+ristoranti+when:30d&hl=it&gl=IT&ceid=IT:it"},
-    {"country": "Italy", "name": "Dissapore", "url": "https://www.dissapore.com/feed/"},
-    {"country": "Italy", "name": "Puntarella Rossa", "url": "https://www.puntarellarossa.it/feed/"},
-    {"country": "Italy", "name": "Scatti di Gusto", "url": "https://www.scattidigusto.it/feed/"},
-    {"country": "Italy", "name": "Agrodolce", "url": "https://www.agrodolce.it/feed/"},
-    {"country": "Italy", "name": "Luciano Pignataro Blog", "url": "https://www.lucianopignataro.it/feed/"},
-    {"country": "Italy", "name": "AVPN Vera Pizza Napoletana", "url": "https://news.google.com/rss/search?q=Vera+Pizza+Napoletana+AVPN+when:14d&hl=it&gl=IT&ceid=IT:it"},
-    {"country": "Italy", "name": "Sagre e Feste d'Italia", "url": "https://news.google.com/rss/search?q=(Sagra+del+OR+Festa+del)+quando+dove+when:7d&hl=it&gl=IT&ceid=IT:it"},
-    {"country": "Italy", "name": "Pesto & Focaccia di Recco", "url": "https://news.google.com/rss/search?q=(Campionato+Mondiale+Pesto+OR+Focaccia+di+Recco+Consorzio)+when:30d&hl=it&gl=IT&ceid=IT:it"},
-
-    # --- 日本 ---
-    {"country": "Japan", "name": "dancyu WEB", "url": "https://dancyu.jp/feed"},
-    {"country": "Japan", "name": "おとなの週末", "url": "https://otonano-shumatsu.com/feed"},
-    {"country": "Japan", "name": "散步達人 (San-tatsu)", "url": "https://san-tatsu.jp/feed/"},
-    {"country": "Japan", "name": "Hanako (Bread & Cafe)", "url": "https://hanako.tokyo/feed/"},
-    {"country": "Japan", "name": "Tabelog 百名店速報", "url": "https://news.google.com/rss/search?q=site:tabelog.com+(百名店+発表)+when:30d&hl=ja&gl=JP&ceid=JP:ja"},
-    {"country": "Japan", "name": "Reddit Tokyo Food", "url": "https://www.reddit.com/r/tokyo/search.rss?q=kissaten+OR+restaurant+OR+bakery&sort=new&restrict_sr=on"},
-
-    # --- 台灣 ---
-    {"country": "Taiwan", "name": "500輯", "url": "https://500times.udn.com/rss/news/1007"},
-    {"country": "Taiwan", "name": "500碗/500盤 追蹤", "url": "https://news.google.com/rss/search?q=(500碗+OR+500盤)+完整名單+when:30d&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"},
-    {"country": "Taiwan", "name": "鳴人堂 飲食文化", "url": "https://opinion.udn.com/rss/tag/飲食"},
-    {"country": "Taiwan", "name": "旅飯 Pantravel", "url": "https://pantravel.life/feed/"},
-    {"country": "Taiwan", "name": "鏡食旅", "url": "https://www.mirrormedia.mg/rss/category/foodtravel.xml"},
-    {"country": "Taiwan", "name": "Reddit Taiwan Food", "url": "https://www.reddit.com/r/taiwan/search.rss?q=breakfast+OR+restaurant+OR+food+stall&sort=new&restrict_sr=on"}
+# 2. 本地關鍵字快篩清單（過濾無關新聞，省下 API 額度）
+FOOD_KEYWORDS = [
+    # 中文
+    "餐廳", "小吃", "美食", "必吃", "招牌", "麵", "飯", "拉麵", "咖啡", "私廚", "甜點", "烘焙", "入選",
+    # 法文
+    "restaurant", "bistrot", "boulangerie", "croissant", "café", "pâtisserie", "chef", "table",
+    # 義文
+    "trattoria", "pizzeria", "osteria", "ristorante", "caffè", "pasta", "pizza", "gelato", "sagra",
+    # 日文
+    "ラーメン", "うどん", "そば", "食堂", "カフェ", "ベーカリー", "百名店", "新店", "名店"
 ]
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+def is_food_related(title: str, summary: str = "") -> bool:
+    text = (title + " " + summary).lower()
+    return any(keyword.lower() in text for keyword in FOOD_KEYWORDS)
 
-def analyze_with_gemini(country: str, title: str, content: str):
-    country_rules = {
-        "France": "優先收錄：手工長棍冠軍（Baguette de tradition）、奶油可頌冠軍、Levain酸種、Le Fooding、Gault & Millau、On va déguster、地方日報副刊（Sud Ouest, Ouest-France）、ASOM美乃滋蛋、5A肉腸。排除美式早午餐與全日供餐觀光店。",
-        "Italy": "優先收錄：慢食小蝸牛（Chiocciola）、紅蝦三隻蝦/三條麵包、50 Top Pizza、AVPN披薩、老烤爐（Forno）、Maritozzo生乳包、Sagra鄉村節慶。排除夏威夷披薩、雞肉義大利麵與觀光連鎖店。",
-        "Japan": "優先收錄：純喫茶Morning服務、國產小麥天然酵母麵包、Tabelog 3.5分以上與百名店、町中華、十割蕎麥、日替わり定食。排除連鎖居酒屋與網紅打卡店。",
-        "Taiwan": "優先收錄：手工厚燒餅夾蛋、粉漿蛋餅、老市場晨間熱湯（溫體牛肉湯、黑白切米粉湯）、500碗小吃、500盤推薦單道菜、老麵麵包。排除連鎖加盟早午餐與夜市半成品。"
-    }
+# 3. 帶重試與退避的 Gemini 分析函式
+def analyze_with_gemini(client, title: str, summary: str, source_name: str, max_retries: int = 3):
+    system_instruction = (
+        "你是一個極度嚴謹的美食雷達分析師。請分析以下美食文章或社群討論，篩選出具體推薦的實體餐飲店家。"
+        "嚴格標準：\n"
+        "1. 必須是明確推薦、具備職人水準、在地認證或特色招牌的實體店面。\n"
+        "2. 若文章純屬新聞政策、人物訪談而未推薦具體實體好店，請回傳空陣列 []。\n"
+        "3. 地址必須具備足夠辨識度以利地圖定位。"
+    )
 
-    system_instruction = f"""你是一位精通法、義、日、中多國常民飲食文化的資深獨立食評家。
-任務：評估文章推薦的實體店家是否符合「在地熟客喜愛、非觀光打卡導向」。
+    prompt = f"來源：{source_name}\n標題：{title}\n內文摘要：{summary}\n\n請從中提取符合標準的好店清單。"
 
-【{country} 專屬標準】
-{country_rules.get(country, "")}
-
-【輸出規定】
-僅萃取符合標準的實體店家。若文章純屬新聞、專題未推薦實體店，請回傳空陣列 []。"""
-
-    prompt = f"文章標題：{title}\n文章內容：{content[:3500]}"
-
-    try:
-        response = client.models.generate_content(
-            model="gemini-3.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.1,
-                response_mime_type="application/json",
-                response_schema=list[FoodPlace]
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.1,
+                    response_mime_type="application/json",
+                    response_schema=list[FoodPlace]
+                )
             )
-        )
-        data = json.loads(response.text)
-        return data if isinstance(data, list) else []
-    except Exception as e:
-        print(f"Gemini 分析失敗: {e}")
-        return []
+            data = json.loads(response.text)
+            return data if isinstance(data, list) else []
+        except Exception as e:
+            err_msg = str(e)
+            if ("429" in err_msg or "503" in err_msg) and attempt < max_retries:
+                wait_time = attempt * 20  # 遇到頻率限制，梯次等待 20s、40s
+                print(f"⚠️ 觸發配額限制或伺服器忙碌，等待 {wait_time} 秒後重試 (第 {attempt} 次)...")
+                time.sleep(wait_time)
+            else:
+                print(f"Gemini 分析失敗: {e}")
+                return []
+    return []
 
-# ================= 試算表快取與操作模組 =================
-def setup_google_sheet():
-    creds_info = json.loads(GCP_SA_KEY)
-    scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-    creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
-    gc = gspread.authorize(creds)
-    return gc.open_by_key(SPREADSHEET_ID)
-
-def get_or_create_worksheet(sh, country):
-    try:
-        return sh.worksheet(country)
-    except gspread.exceptions.WorksheetNotFound:
-        ws = sh.add_worksheet(title=country, rows=100, cols=10)
-        headers = HEADERS_CONFIG.get(country, ["城市", "店名", "類別", "在地必點招牌", "認證", "探訪秘訣", "地址", "來源連結", "抓取日期"])
-        ws.append_row(headers)
-        print(f"✨ 已為 [{country}] 自動建立新工作表並初始化標題列！")
-        return ws
-
+# 4. 主執行流程
 def main():
-    sh = setup_google_sheet()
-    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+    spreadsheet_id = os.environ.get("SPREADSHEET_ID")
+    gcp_sa_key = os.environ.get("GCP_SA_KEY")
 
-    # 快取各工作表物件與現有 URL，避免重複請求觸發 429 頻率限制
-    worksheets = {}
-    existing_urls_cache = {}
+    if not all([gemini_key, spreadsheet_id, gcp_sa_key]):
+        raise ValueError("環境變數未完整設定 (GEMINI_API_KEY, SPREADSHEET_ID, GCP_SA_KEY)")
 
-    for feed in RSS_FEEDS:
-        country = feed["country"]
-        name = feed["name"]
-        url = feed["url"]
+    client = genai.Client(api_key=gemini_key)
 
-        # 每個國家只在第一次存取時向 Google 請求一次
-        if country not in worksheets:
-            ws = get_or_create_worksheet(sh, country)
-            worksheets[country] = ws
-            col_values = ws.col_values(8)
-            existing_urls_cache[country] = set(col_values[1:]) if len(col_values) > 1 else set()
+    # 連線 Google Sheets
+    sa_info = json.loads(gcp_sa_key)
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(sa_info, scope)
+    gc = gspread.authorize(creds)
+    spreadsheet = gc.open_by_key(spreadsheet_id)
 
-        worksheet = worksheets[country]
-        existing_urls = existing_urls_cache[country]
+    # 讀取訂閱清單 sources.json
+    with open("sources.json", "r", encoding="utf-8") as f:
+        sources_data = json.load(f)
 
-        print(f"[{country}] 正在讀取 RSS: {name}")
-        parsed_feed = feedparser.parse(url)
+    today_str = time.strftime("%Y-%m-%d")
 
-        for entry in parsed_feed.entries[:2]:
-            link = getattr(entry, "link", "").strip()
-            title = getattr(entry, "title", "")
-            summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+    for country, feeds in sources_data.items():
+        try:
+            worksheet = spreadsheet.worksheet(country)
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = spreadsheet.add_worksheet(title=country, rows="1000", cols="10")
+            worksheet.append_row(["城市", "店名", "類別", "在地必點招牌", "公會/評鑑認證", "探訪秘訣", "地址", "來源連結", "抓取日期"])
 
-            if not link or link in existing_urls:
+        existing_names = set(worksheet.col_values(2)[1:])  # 避免重複寫入相同店名
+
+        for feed_info in feeds:
+            feed_name = feed_info["name"]
+            feed_url = feed_info["url"]
+            print(f"[{country}] 正在讀取 RSS: {feed_name}")
+
+            try:
+                parsed = feedparser.parse(feed_url)
+            except Exception as e:
+                print(f"RSS 解析失敗: {feed_name} -> {e}")
                 continue
 
-            print(f"-> 正在以 Gemini 分析: {title}")
-            places = analyze_with_gemini(country, title, summary)
+            # 抓取最新 3 篇
+            for entry in parsed.entries[:3]:
+                title = getattr(entry, "title", "")
+                summary = getattr(entry, "summary", "")
+                link = getattr(entry, "link", "")
 
-            if places and isinstance(places, list):
-                rows_to_append = []
+                # 本地前置過濾：非美食文章直接跳過，省下 API 呼叫次數
+                if not is_food_related(title, summary):
+                    continue
+
+                print(f"-> 正在以 Gemini 分析: {title}")
+                places = analyze_with_gemini(client, title, summary, feed_name)
+
+                # 頻率保護：每次呼叫後強制暫停 12 秒，將呼叫頻率控制在 ~5 RPM 以內
+                time.sleep(12)
+
+                rows_to_insert = []
                 for p in places:
-                    row = [
+                    if p["name"] in existing_names:
+                        continue
+                    rows_to_insert.append([
                         p.get("city", ""),
                         p.get("name", ""),
                         p.get("category", ""),
@@ -185,13 +145,12 @@ def main():
                         p.get("address", ""),
                         link,
                         today_str
-                    ]
-                    rows_to_append.append(row)
-                
-                if rows_to_append:
-                    worksheet.append_rows(rows_to_append)
-                    print(f"   已成功寫入 {len(rows_to_append)} 間好店至 [{country}] 分頁！")
-                    existing_urls.add(link)
+                    ])
+                    existing_names.add(p["name"])
+
+                if rows_to_insert:
+                    worksheet.append_rows(rows_to_insert)
+                    print(f"   已成功寫入 {len(rows_to_insert)} 間好店至 [{country}] 分頁！")
 
 if __name__ == "__main__":
     main()
