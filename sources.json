@@ -1,8 +1,8 @@
 {
   "FR_Paris": [
     {
-      "name": "Time Out Paris Food",
-      "url": "https://www.timeout.com/paris/en/restaurants/rss"
+      "name": "Google News Paris Gastronomie",
+      "url": "https://news.google.com/rss/search?q=(Paris)+AND+(restaurant+OR+bistrot)&hl=fr&gl=FR&ceid=FR:fr"
     }
   ],
   "IT_Centro": [
