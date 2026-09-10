@@ -17,7 +17,7 @@ SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "YOUR_SPREADSHEET_ID_HERE")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # 限速防護設定
-GEMINI_MODEL = "gemini-3.5-flash"
+GEMINI_MODEL = "gemini-2.5-flash"
 RATE_LIMIT_DELAY = 12  # 每次呼叫強制間隔 12 秒 (每分鐘 <= 5 次請求)
 MAX_RETRIES = 3        # 遇到 503 時最大重試次數
 
