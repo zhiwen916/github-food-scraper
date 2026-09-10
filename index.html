@@ -16,13 +16,22 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-color); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; }
 
-    header { background: var(--card-bg); padding: 10px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; z-index: 1000; }
+    header { background: var(--card-bg); padding: 10px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
+    .header-top { display: flex; justify-content: space-between; align-items: center; }
     .brand { font-weight: 700; font-size: 1.1rem; color: var(--primary-color); }
     .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    select, button { padding: 7px 10px; border-radius: 6px; border: 1px solid #ced4da; font-size: 0.85rem; background: #fff; cursor: pointer; }
+    select, button { padding: 6px 10px; border-radius: 6px; border: 1px solid #ced4da; font-size: 0.85rem; background: #fff; cursor: pointer; }
     
     .btn-gps { background: #1976d2; color: #fff; border: none; font-weight: 600; }
     .btn-gps.active { background: #0d47a1; }
+
+    /* 橫向模式按鈕群 */
+    .radar-options { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+    .radar-btn { border: 1px solid #ced4da; background: #fff; border-radius: 20px; padding: 4px 12px; font-size: 0.8rem; white-space: nowrap; cursor: pointer; transition: 0.2s; }
+    .radar-btn.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); font-weight: 600; }
+
+    /* 提示訊息列 */
+    .hint-bar { background: #fff8e1; color: #8d6e63; font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; text-align: center; }
 
     main { display: flex; flex: 1; overflow: hidden; }
     #map { flex: 1; height: 100%; min-height: 300px; }
@@ -50,26 +59,25 @@
 <body>
 
   <header>
-    <div class="brand">🍽️ Private Food Radar</div>
-    <div class="controls">
-      <!-- 大區選單 -->
-      <select id="regionFilter">
-        <option value="ALL">🌐 全球大區</option>
-        <option value="TW_Taipei" selected>🇹🇼 台灣·台北</option>
-        <option value="FR_Paris">🇫🇷 法國·巴黎</option>
-        <option value="IT_Centro">🇮🇹 義大利·托斯卡尼</option>
-      </select>
+    <div class="header-top">
+      <div class="brand">🍽️ Private Food Radar</div>
+      <div class="controls">
+        <select id="regionFilter">
+          <option value="ALL">🌐 全球大區</option>
+          <option value="TW_Taipei" selected>🇹🇼 台灣·台北</option>
+          <option value="FR_Paris">🇫🇷 法國·巴黎</option>
+          <option value="IT_Centro">🇮🇹 義大利·托斯卡尼</option>
+        </select>
+        <button id="gpsBtn" class="btn-gps">📍 定位自身</button>
+      </div>
+    </div>
 
-      <!-- 時間半徑篩選 -->
-      <select id="radiusFilter">
-        <option value="ALL">📏 不限距離</option>
-        <option value="500">🚶 步行 7 分鐘 (500m)</option>
-        <option value="750">🚶 步行 10 分鐘 (750m)</option>
-        <option value="1100">🚶 步行 15 分鐘 (1.1km)</option>
-        <option value="3000">🚇 公車捷運 30 分鐘 (3km)</option>
-      </select>
+    <!-- 動態產生的雷達按鈕選單 -->
+    <div class="radar-options" id="radarOptions"></div>
 
-      <button id="gpsBtn" class="btn-gps">📍 定位自身</button>
+    <!-- 原本的提示列完整加回 -->
+    <div class="hint-bar">
+      💡 點擊地圖任一處，或長按拖曳藍色圓點即可更改搜尋中心
     </div>
   </header>
 
@@ -82,14 +90,55 @@
   </main>
 
   <script>
+    // ==========================================
+    // ⚙️ 集中設定區：修改此處即可調整時間與半徑
+    // ==========================================
+    const RADAR_CONFIG = {
+      defaultIndex: 0, // 預設選中第幾項 (0 代表第 1 項)
+      options: [
+        {
+          mode: 'walk',
+          minutes: 7,
+          meters: 500,        // 7 分鐘步行約 500 公尺
+          zoom: 16.5,
+          icon: '🚶',
+          label: '7分'
+        },
+        {
+          mode: 'walk',
+          minutes: 10,
+          meters: 750,        // 10 分鐘步行約 750 公尺
+          zoom: 16.0,
+          icon: '🚶',
+          label: '10分'
+        },
+        {
+          mode: 'walk',
+          minutes: 15,
+          meters: 1100,       // 15 分鐘步行約 1.1 公里
+          zoom: 15.5,
+          icon: '🚶',
+          label: '15分'
+        },
+        {
+          mode: 'transit',
+          minutes: 30,
+          meters: 5000,       // 捷運公車 30 分鐘生活圈約 5 公里
+          zoom: 13.5,
+          icon: '🚌',
+          label: '捷運/公車 30分'
+        }
+      ]
+    };
+
     let map;
     let allPlaces = [];
     let markers = [];
-    let userMarker = null;
-    let userCircle = null;
-    let userLocation = null;
+    let centerMarker = null;
+    let centerCircle = null;
+    let currentCenter = { lat: 25.0330, lng: 121.5654 }; // 預設台北
+    let activeRadarIdx = RADAR_CONFIG.defaultIndex;
 
-    // Haversine 公尺距離換算
     function getDistance(lat1, lon1, lat2, lon2) {
       const R = 6371e3;
       const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
@@ -98,17 +147,92 @@
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    // Google Maps API 回呼初始化
     function initMap() {
+      const opt = RADAR_CONFIG.options[activeRadarIdx];
       map = new google.maps.Map(document.getElementById('map'), {
-        center: { lat: 25.0330, lng: 121.5654 },
-        zoom: 13,
+        center: currentCenter,
+        zoom: opt.zoom,
         mapTypeControl: false,
         streetViewControl: false
       });
 
+      // 建立可拖曳的藍色中心標記
+      centerMarker = new google.maps.Marker({
+        position: currentCenter,
+        map: map,
+        draggable: true,
+        title: "長按拖曳以移動搜尋中心",
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 9,
+          fillColor: "#1976d2",
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 2,
+        }
+      });
+
+      // 拖曳藍點結束時觸發更新
+      google.maps.event.addListener(centerMarker, 'dragend', function(evt) {
+        currentCenter = { lat: evt.latLng.lat(), lng: evt.latLng.lng() };
+        updateRadarVisuals(false);
+        render();
+      });
+
+      // 點擊地圖任一處，直接將中心點移動過去
+      map.addListener('click', function(evt) {
+        currentCenter = { lat: evt.latLng.lat(), lng: evt.latLng.lng() };
+        centerMarker.setPosition(currentCenter);
+        updateRadarVisuals(false);
+        render();
+      });
+
+      buildRadarButtons();
+      updateRadarVisuals(true);
       loadPlaces();
       setupEvents();
+    }
+
+    function buildRadarButtons() {
+      const container = document.getElementById('radarOptions');
+      container.innerHTML = "";
+
+      RADAR_CONFIG.options.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = `radar-btn ${idx === activeRadarIdx ? 'active' : ''}`;
+        btn.innerHTML = `${opt.icon} ${opt.label} (${opt.meters >= 1000 ? (opt.meters/1000) + 'km' : opt.meters + 'm'})`;
+        btn.onclick = () => {
+          activeRadarIdx = idx;
+          document.querySelectorAll('.radar-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+          updateRadarVisuals(true);
+          render();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function updateRadarVisuals(shouldPanZoom) {
+      const opt = RADAR_CONFIG.options[activeRadarIdx];
+
+      if (centerCircle) {
+        centerCircle.setMap(null);
+      }
+
+      centerCircle = new google.maps.Circle({
+        strokeColor: "#e65100",
+        strokeOpacity: 0.85,
+        strokeWeight: 2,
+        fillColor: "#e65100",
+        fillOpacity: 0.08,
+        map: map,
+        center: currentCenter,
+        radius: opt.meters
+      });
+
+      if (shouldPanZoom) {
+        map.panTo(currentCenter);
+        map.setZoom(opt.zoom);
+      }
     }
 
     async function loadPlaces() {
@@ -118,16 +242,12 @@
         allPlaces = await res.json();
         render();
       } catch (err) {
-        document.getElementById('listStatus').innerText = "⚠️ 尚未載入 places.json 或暫無資料。";
+        document.getElementById('listStatus').innerText = "⚠️ 尚未載入 places.json 或暫無資料。請在試算表點擊「一鍵同步全部」。";
       }
     }
 
     function setupEvents() {
       document.getElementById('regionFilter').addEventListener('change', render);
-      document.getElementById('radiusFilter').addEventListener('change', () => {
-        updateRadiusCircle();
-        render();
-      });
       document.getElementById('gpsBtn').addEventListener('click', locateUser);
     }
 
@@ -138,55 +258,14 @@
       }
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          
-          if (!userMarker) {
-            userMarker = new google.maps.Marker({
-              position: userLocation,
-              map: map,
-              title: "📍 你目前的位置",
-              icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 8,
-                fillColor: "#1976d2",
-                fillOpacity: 1,
-                strokeColor: "#ffffff",
-                strokeWeight: 2,
-              }
-            });
-          } else {
-            userMarker.setPosition(userLocation);
-          }
-
-          map.setCenter(userLocation);
-          map.setZoom(15);
-          updateRadiusCircle();
+          currentCenter = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          centerMarker.setPosition(currentCenter);
+          updateRadarVisuals(true);
           render();
         },
         () => alert("取得定位失敗，請確認已開放瀏覽器位置權限。"),
         { enableHighAccuracy: true }
       );
-    }
-
-    function updateRadiusCircle() {
-      const radiusVal = document.getElementById('radiusFilter').value;
-      if (userCircle) {
-        userCircle.setMap(null);
-        userCircle = null;
-      }
-
-      if (userLocation && radiusVal !== "ALL") {
-        userCircle = new google.maps.Circle({
-          strokeColor: "#e65100",
-          strokeOpacity: 0.8,
-          strokeWeight: 1.5,
-          fillColor: "#e65100",
-          fillOpacity: 0.08,
-          map: map,
-          center: userLocation,
-          radius: parseFloat(radiusVal)
-        });
-      }
     }
 
     function render() {
@@ -196,36 +275,23 @@
       container.innerHTML = "";
 
       const region = document.getElementById('regionFilter').value;
-      const radiusVal = document.getElementById('radiusFilter').value;
-      const radiusMeters = radiusVal === "ALL" ? Infinity : parseFloat(radiusVal);
+      const opt = RADAR_CONFIG.options[activeRadarIdx];
 
       let filtered = allPlaces.filter(p => {
         if (region !== "ALL" && p.region !== region) return false;
-        if (radiusMeters !== Infinity && userLocation) {
-          if (!p.lat || !p.lng) return false;
-          return getDistance(userLocation.lat, userLocation.lng, p.lat, p.lng) <= radiusMeters;
-        }
-        return true;
+        if (!p.lat || !p.lng) return false;
+        return getDistance(currentCenter.lat, currentCenter.lng, p.lat, p.lng) <= opt.meters;
       });
 
-      document.getElementById('listStatus').innerText = `共發掘 ${filtered.length} 間私房名單`;
+      document.getElementById('listStatus').innerText = `搜尋圈內共發掘 ${filtered.length} 間私房名單`;
 
       filtered.forEach(item => {
-        let distanceLabel = "";
-        if (userLocation && item.lat && item.lng) {
-          const d = Math.round(getDistance(userLocation.lat, userLocation.lng, item.lat, item.lng));
-          distanceLabel = ` (距您 ${d}m · 步行約 ${Math.ceil(d / 75)} 分鐘)`;
-        }
+        const d = Math.round(getDistance(currentCenter.lat, currentCenter.lng, item.lat, item.lng));
+        const distanceLabel = ` (距中心 ${d}m · 步行約 ${Math.ceil(d / 75)} 分鐘)`;
 
-        const walkUrl = item.lat && item.lng
-          ? `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}&travelmode=walking`
-          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.name + ' ' + (item.address || ''))}`;
-        
-        const transitUrl = item.lat && item.lng
-          ? `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}&travelmode=transit`
-          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.name + ' ' + (item.address || ''))}`;
+        const walkUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}&travelmode=walking`;
+        const transitUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}&travelmode=transit`;
 
-        // 卡片
         const card = document.createElement('div');
         card.className = 'place-card';
         card.innerHTML = `
@@ -243,27 +309,21 @@
         `;
         container.appendChild(card);
 
-        // 地圖標記
-        if (item.lat && item.lng) {
-          const marker = new google.maps.Marker({
-            position: { lat: item.lat, lng: item.lng },
-            map: map,
-            title: item.name
-          });
-          const info = new google.maps.InfoWindow({
-            content: `<b>${item.name}</b><br>${item.category || ''}<br><a href="${walkUrl}" target="_blank">開始步行導航</a>`
-          });
-          marker.addListener("click", () => info.open(map, marker));
-          markers.push(marker);
-        }
+        const marker = new google.maps.Marker({
+          position: { lat: item.lat, lng: item.lng },
+          map: map,
+          title: item.name
+        });
+        const info = new google.maps.InfoWindow({
+          content: `<b>${item.name}</b><br>${item.category || ''}<br><a href="${walkUrl}" target="_blank">開始步行導航</a>`
+        });
+        marker.addListener("click", () => info.open(map, marker));
+        markers.push(marker);
       });
     }
   </script>
 
-  <!-- 載入 Google Maps API -->
-<script 
-    src="https://maps.googleapis.com/maps/api/js?key=__MAPS_API_KEY__&callback=initMap" 
-    async defer>
-  </script>
+  <!-- 請將 YOUR_ACTUAL_MAPS_KEY 替換為你在 GitHub Secret 存的 MAPS_API_KEY -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_ACTUAL_MAPS_KEY&callback=initMap"></script>
 </body>
 </html>
