@@ -1,0 +1,39 @@
+{
+  "FR_Paris": {
+    "Paris": {
+      "country": "France",
+      "tier": "超一級",
+      "type": "首都都會",
+      "keywords": [
+        "Paris",
+        "Marais",
+        "Montmartre",
+        "Bastille"
+      ]
+    }
+  },
+  "IT_Centro": {
+    "Pienza": {
+      "country": "Italy",
+      "tier": "四級",
+      "type": "地方小市鎮",
+      "keywords": [
+        "Pienza",
+        "Val d'Orcia",
+        "Pecorino"
+      ]
+    }
+  },
+  "IT_Roma_Milano": {
+    "Roma": {
+      "country": "Italy",
+      "tier": "超一級",
+      "type": "廣域市",
+      "keywords": [
+        "Roma",
+        "Rome",
+        "Trastevere"
+      ]
+    }
+  }
+}
