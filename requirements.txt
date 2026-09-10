@@ -3,4 +3,8 @@ google-genai>=0.1.0
 gspread==6.1.0
 google-auth==2.29.0
 requests==2.32.2
+google-genai
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
 google-api-python-client
