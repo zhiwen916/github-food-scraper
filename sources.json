@@ -21,12 +21,12 @@
       "url": "https://news.google.com/rss/search?q=(台北)+AND+(米其林+OR+必比登+OR+私房菜)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
     },
     {
-      "name": "食尚玩家 台北特搜",
-      "url": "https://supertaste.tvbs.com.tw/rss/category/2"
+      "name": "中央社 生活美食特搜",
+      "url": "https://feeds.feedburner.com/cnaFirstNews"
     },
     {
-      "name": "窩客島 WalkerLand 台北美食",
-      "url": "https://www.walkerland.com.tw/rss/food"
+      "name": "聯合新聞網 旅遊美食",
+      "url": "https://udn.com/rssfeed/news/2/7115?ch=news"
     }
   ]
 }
