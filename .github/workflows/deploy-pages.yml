@@ -1,44 +1,33 @@
-name: Deploy GitHub Pages
+name: Deploy Radar to GitHub Pages
 
 on:
   push:
-    branches: ["main"]
-    paths:
-      - 'index.html'
-      - 'manifest.json'
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Inject Secrets into index.html
-        env:
-          GAS_URL: ${{ secrets.GAS_API_URL }}
-          MAPS_KEY: ${{ secrets.MAPS_API_KEY }}
         run: |
-          sed -i "s|__GAS_API_URL__|${GAS_URL}|g" index.html
-          sed -i "s|__MAPS_API_KEY__|${MAPS_KEY}|g" index.html
+          # 替換 MAPS_API_KEY 與 GAS_API_URL 佔位符
+          sed -i 's|__MAPS_API_KEY__|${{ secrets.MAPS_API_KEY }}|g' index.html
+          sed -i 's|__GAS_API_URL__|${{ secrets.GAS_API_URL }}|g' index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Upload artifact
+      - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
