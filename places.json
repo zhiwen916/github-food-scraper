@@ -1,1 +1,81 @@
-{}
+{
+  "IT_Centro": [
+    {
+      "region": "IT_Centro",
+      "tier": "四級",
+      "city": "Pienza",
+      "name": "La Terrazza del Chiostro",
+      "category": "精緻餐飲 (Ristorante)",
+      "must_try": "主廚 Alessandro Rossi 特製托斯卡尼創意料理",
+      "badge": "米其林指南推薦",
+      "tip": "景觀極佳，建議提早預約露臺戶外座位",
+      "address": "Corso il Rossellino, 26, 53026 Pienza SI, Italy",
+      "link": "https://news.google.com/rss/articles/CBMiqwFBVV95cUxNQU53YkZTaE8wbi1lZXcxWXFKVS11N290dXlxYVB1VUt1czdDSVRacXo3V2N6alJGcy1jLUlHNUVMZXVCbEpGOXZFdjJjNXFObVFOLUZCMnBNeWE4dFdvZTQzc09lbk9ha0pSUDJBWlotdlVHTmxmMTZ6SS1lR3FVRE50RDA0WFlSWnhFYVVxVmltZFBHaUtnTUlQblI3ZE1SbG9iS0l2M2JmZEU?oc=5",
+      "date": "2026-09-10",
+      "lat": 43.076816,
+      "lng": 11.678217
+    },
+    {
+      "region": "IT_Centro",
+      "tier": "四級",
+      "city": "Pienza",
+      "name": "Vitaleta Gourmet",
+      "category": "景觀餐廳",
+      "must_try": "托斯卡尼精緻料理",
+      "badge": "",
+      "tip": "建議提前預約以確保享有奧爾恰山谷景觀座位",
+      "address": "Str. di Vitaleta, Pienza",
+      "link": "https://news.google.com/rss/articles/CBMivgFBVV95cUxOUzhHclFFUGotTzNMQXgweHQ1RVFSeHVGZm5xcW5hRFhUWXNVdV9xRjhyZlB0M0dqVU9hQzVGNUZySFoxSnloQk9SWlJialRYZnlkbmh1SkJtcDVDdHNENDVJa3djeFZRQ3BybkExWXRfcEJTTldhX0lQVmF2NDNvc29SdFlZZ0ptRXY0ZEtiS2RxRFFkZkJrOFlSc3J4azM4aDlBR3Ata0o2dEtyck9YYXlfaUJwT2NxX0FmeWNn?oc=5",
+      "date": "2026-09-10",
+      "lat": 43.070846,
+      "lng": 11.63442
+    }
+  ],
+  "TW_Taipei": [
+    {
+      "region": "TW_Taipei",
+      "tier": "超一級",
+      "city": "台北 (Taipei)",
+      "name": "鳥翔",
+      "category": "燒鳥 / 日式串燒",
+      "must_try": "炭火燒鳥專門料理",
+      "badge": "",
+      "tip": "建議提前預約",
+      "address": "台北市大安區濟南路三段41號",
+      "link": "https://news.google.com/rss/articles/CBMiZkFVX3lxTFB0RnFWSEYzOTN5UXR3SVNBMlZEYUVVSnhScVZaVlBUMDMzcUZXWjhQWDNNTWJPT0F6ZDNlM2Z3eUREN00zY01vczd0UW9NRFBoR1FmdFJkNURFTlJFY05zNTNHTHUtQQ?oc=5",
+      "date": "2026-09-10",
+      "lat": 25.040327,
+      "lng": 121.5363
+    },
+    {
+      "region": "TW_Taipei",
+      "tier": "超一級",
+      "city": "台北 (Taipei)",
+      "name": "福園台菜",
+      "category": "台菜餐廳",
+      "must_try": "呷酢蝦、紅蟳米糕",
+      "badge": "",
+      "tip": "",
+      "address": "台北市信義區台北大巨蛋",
+      "link": "https://news.google.com/rss/articles/CBMie0FVX3lxTE8zZ3Rpd3NwNzhzRjRndFpSRm1OSElsSmpsd1pQT0dka0pSdkNOaURtanM3NjI0b2VJQ015Nm50U2FVZ290elpFc2V1WWJGYVZDSG85cUIzMWxfV3BaNExlcFIwVEFZYURmUEFDNEtqUU5EWGlieEFfcTFXaw?oc=5",
+      "date": "2026-09-10",
+      "lat": 25.042437,
+      "lng": 121.559507
+    },
+    {
+      "region": "TW_Taipei",
+      "tier": "超一級",
+      "city": "台北 (Taipei)",
+      "name": "一樣 YEE YUNG",
+      "category": "韓式料理",
+      "must_try": "韓式個人套餐",
+      "badge": "",
+      "tip": "適合單人前往用餐，鄰近大巨蛋及國父紀念館",
+      "address": "台北市 (近大巨蛋、國父紀念館)",
+      "link": "https://news.google.com/rss/articles/CBMiQEFVX3lxTE5pOVRDUlFWWHYxZ0twV0RZLXQtejBCVlhoODg1NEU2WHdLQlU2Y1F5c1BDdDFpTEdwQ3pLczZrZzk?oc=5",
+      "date": "2026-09-10",
+      "lat": 25.041071,
+      "lng": 121.560407
+    }
+  ]
+}
