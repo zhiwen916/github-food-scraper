@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Private Food Radar | 私房美食雷達</title>
 
   <style>
@@ -16,22 +16,22 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-color); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; }
 
-    header { background: var(--card-bg); padding: 10px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
+    header { background: var(--card-bg); padding: 10px 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
     .header-top { display: flex; justify-content: space-between; align-items: center; }
     .brand { font-weight: 700; font-size: 1.1rem; color: var(--primary-color); }
-    .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .controls { display: flex; gap: 8px; align-items: center; }
     select, button { padding: 6px 10px; border-radius: 6px; border: 1px solid #ced4da; font-size: 0.85rem; background: #fff; cursor: pointer; }
     
     .btn-gps { background: #1976d2; color: #fff; border: none; font-weight: 600; }
-    .btn-gps.active { background: #0d47a1; }
+    .btn-gps:active { background: #0d47a1; }
 
-    /* 橫向模式按鈕群 */
+    /* 橫向模式按鈕列 */
     .radar-options { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
     .radar-btn { border: 1px solid #ced4da; background: #fff; border-radius: 20px; padding: 4px 12px; font-size: 0.8rem; white-space: nowrap; cursor: pointer; transition: 0.2s; }
     .radar-btn.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); font-weight: 600; }
 
     /* 提示訊息列 */
-    .hint-bar { background: #fff8e1; color: #8d6e63; font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; text-align: center; }
+    .hint-bar { background: #fff8e1; color: #8d6e63; font-size: 0.75rem; padding: 5px 8px; border-radius: 4px; text-align: center; border: 1px solid #ffe082; }
 
     main { display: flex; flex: 1; overflow: hidden; }
     #map { flex: 1; height: 100%; min-height: 300px; }
@@ -72,10 +72,10 @@
       </div>
     </div>
 
-    <!-- 動態產生的雷達按鈕選單 -->
+    <!-- 橫向半徑按鈕區 -->
     <div class="radar-options" id="radarOptions"></div>
 
-    <!-- 原本的提示列完整加回 -->
+    <!-- 操作提示列 -->
     <div class="hint-bar">
       💡 點擊地圖任一處，或長按拖曳藍色圓點即可更改搜尋中心
     </div>
@@ -94,12 +94,12 @@
     // ⚙️ 集中設定區：修改此處即可調整時間與半徑
     // ==========================================
     const RADAR_CONFIG = {
-      defaultIndex: 0, // 預設選中第幾項 (0 代表第 1 項)
+      defaultIndex: 0,
       options: [
         {
           mode: 'walk',
           minutes: 7,
-          meters: 500,        // 7 分鐘步行約 500 公尺
+          meters: 500,        // 7 分鐘步行約 500 公尺[cite: 1]
           zoom: 16.5,
           icon: '🚶',
           label: '7分'
@@ -136,9 +136,10 @@
     let markers = [];
     let centerMarker = null;
     let centerCircle = null;
-    let currentCenter = { lat: 25.0330, lng: 121.5654 }; // 預設台北
+    let currentCenter = { lat: 25.0330, lng: 121.5654 }; // 預設中心點 (台北)
     let activeRadarIdx = RADAR_CONFIG.defaultIndex;
 
+    // Haversine 公尺距離計算
     function getDistance(lat1, lon1, lat2, lon2) {
       const R = 6371e3;
       const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
@@ -149,18 +150,23 @@
 
     function initMap() {
       const opt = RADAR_CONFIG.options[activeRadarIdx];
+      
+      // 關鍵設定：gestureHandling: 'greedy' 確保單指即可自由平移地圖，不需要兩指
       map = new google.maps.Map(document.getElementById('map'), {
         center: currentCenter,
         zoom: opt.zoom,
+        gestureHandling: 'greedy',
         mapTypeControl: false,
-        streetViewControl: false
+        streetViewControl: false,
+        fullscreenControl: false
       });
 
-      // 建立可拖曳的藍色中心標記
+      // 建立可拖曳的藍色圓點中心標記
       centerMarker = new google.maps.Marker({
         position: currentCenter,
         map: map,
         draggable: true,
+        cursor: 'grab',
         title: "長按拖曳以移動搜尋中心",
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
@@ -168,18 +174,18 @@
           fillColor: "#1976d2",
           fillOpacity: 1,
           strokeColor: "#ffffff",
-          strokeWeight: 2,
+          strokeWeight: 2.5,
         }
       });
 
-      // 拖曳藍點結束時觸發更新
-      google.maps.event.addListener(centerMarker, 'dragend', function(evt) {
+      // 1. 長按拖曳藍色圓點後更新中心
+      centerMarker.addListener('dragend', function(evt) {
         currentCenter = { lat: evt.latLng.lat(), lng: evt.latLng.lng() };
         updateRadarVisuals(false);
         render();
       });
 
-      // 點擊地圖任一處，直接將中心點移動過去
+      // 2. 點擊地圖任一處，直接將藍色圓點瞬移至點擊處
       map.addListener('click', function(evt) {
         currentCenter = { lat: evt.latLng.lat(), lng: evt.latLng.lng() };
         centerMarker.setPosition(currentCenter);
@@ -289,7 +295,7 @@
         const d = Math.round(getDistance(currentCenter.lat, currentCenter.lng, item.lat, item.lng));
         const distanceLabel = ` (距中心 ${d}m · 步行約 ${Math.ceil(d / 75)} 分鐘)`;
 
-        const walkUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}&travelmode=walking`;
+        const walkUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}&travelmode=walking`;[cite: 1]
         const transitUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}&travelmode=transit`;
 
         const card = document.createElement('div');
@@ -323,7 +329,7 @@
     }
   </script>
 
-  <!-- 請將 YOUR_ACTUAL_MAPS_KEY 替換為你在 GitHub Secret 存的 MAPS_API_KEY -->
+  <!-- 請將下方 YOUR_ACTUAL_MAPS_KEY 替換為你的 Google Maps API Key -->
   <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_ACTUAL_MAPS_KEY&callback=initMap"></script>
 </body>
 </html>
