@@ -18,7 +18,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # 限速防護設定
 GEMINI_MODEL = "gemini-3.6-flash"
-RATE_LIMIT_DELAY = 12  # 每次呼叫強制間隔 12 秒 (每分鐘 <= 5 次請求)
+RATE_LIMIT_DELAY = 15  # 每次呼叫強制間隔 15 秒 (每分鐘 <= 5 次請求)
 MAX_RETRIES = 3        # 遇到 503 時最大重試次數
 
 # 美食快篩關鍵字清單（英文、法文、義文、中文）
@@ -116,14 +116,15 @@ def analyze_article_with_gemini(client, title: str, summary: str, target_city: s
             err_msg = str(e)
             print(f"   ⚠️ Gemini 呼叫異常 (嘗試 {attempt}/{MAX_RETRIES}): {err_msg}")
             
-            # 若為 429 配額限制或 503 服務端忙碌，採用指數退避
+            # 若為 429 配額限制或 503 服務端忙碌，採用更充裕的指數退避
             if "429" in err_msg or "503" in err_msg:
                 if attempt < MAX_RETRIES:
-                    backoff_time = attempt * 20
+                    # 依序暫停 30 秒、60 秒
+                    backoff_time = attempt * 30
                     print(f"   ⏳ 觸發頻率限制或服務忙碌，暫停 {backoff_time} 秒後重試...")
                     time.sleep(backoff_time)
                 else:
-                    print("   ❌ 已達最大重試次數，略過此篇文章以確保爬蟲持續執行。")
+                    print("   ❌ 已達最大重試次數，略過此篇文章以保護配額。")
                     return {"is_recommendation": False, "stores": []}
             else:
                 # 其他非頻率性錯誤（例如連線中斷或格式解析失敗），小幅等待後重試或略過
@@ -219,8 +220,8 @@ def main():
                 print(f"   ❌ RSS 連線失敗，略過: {e}")
                 continue
 
-            # 每個來源處理最新 10 篇文章
-            for entry in feed.entries[:10]:
+            # 每個來源處理最新 3 篇文章
+            for entry in feed.entries[:3]:
                 title = getattr(entry, "title", "").strip()
                 summary = getattr(entry, "summary", "").strip()
                 link = getattr(entry, "link", "").strip()
