@@ -383,21 +383,32 @@
 
     // 直接讀取由試算表同步產生的 places.json，地址缺經緯度時自動補查
     async function fetchStoreData() {
-      setStatus("載入私房名單中...", "#fbbc05");
+      setStatus("載入私房好店中...", "#fbbc05");
       try {
-        const res = await fetch('places.json?v=' + Date.now());
-        if (!res.ok) throw new Error("places.json 不存在");
-        const places = await res.json();
+        const res = await fetch(GAS_API_URL);
+        if (!res.ok) throw new Error("API 回應錯誤");
+        const jsonResponse = await res.json();
+
+        // 相容不同 GAS 輸出格式：純陣列或包裹在 data 屬性中
+        const places = Array.isArray(jsonResponse) ? jsonResponse : (jsonResponse.data || []);
 
         allCachedPlaces = [];
         const geocodePromises = places.map(place => {
-          if (place.lat && place.lng) {
+          // 若試算表已轉換過經緯度 (lat / lng 或 經度 / 緯度)
+          const lat = parseFloat(place.lat || place.latitude || place["緯度"]);
+          const lng = parseFloat(place.lng || place.longitude || place["經度"]);
+
+          if (!isNaN(lat) && !isNaN(lng)) {
+            place.lat = lat;
+            place.lng = lng;
             allCachedPlaces.push(place);
             return Promise.resolve();
           }
-          // 若 places.json 尚未帶有經緯度，以地址向 Google 地圖做 Geocoding
+
+          // 若無經緯度，以地址進行前端 Geocoding 備援
+          const addr = place.address || place["地址/鄰近標記"] || place.city || "台北市";
           return new Promise((resolve) => {
-            geocoder.geocode({ address: place.address || place.city || "台北市" }, (results, status) => {
+            geocoder.geocode({ address: addr }, (results, status) => {
               if (status === "OK" && results[0]) {
                 place.lat = results[0].geometry.location.lat();
                 place.lng = results[0].geometry.location.lng();
@@ -411,7 +422,8 @@
         await Promise.all(geocodePromises);
         filterAndRenderStores();
       } catch (err) {
-        setStatus("請在試算表點擊一鍵同步", "#ea4335");
+        console.error(err);
+        setStatus("資料庫載入失敗", "#ea4335");
       }
     }
 
