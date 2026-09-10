@@ -10,5 +10,23 @@
       "name": "Google News Pienza",
       "url": "https://news.google.com/rss/search?q=(Pienza)+AND+(trattoria)&hl=it&gl=IT&ceid=IT:it"
     }
+  ],
+  "TW_Taipei": [
+    {
+      "name": "Google News 台北美食與餐廳",
+      "url": "https://news.google.com/rss/search?q=(台北)+AND+(餐廳+OR+美食+OR+小吃)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+    },
+    {
+      "name": "Google News 台北米其林與必比登",
+      "url": "https://news.google.com/rss/search?q=(台北)+AND+(米其林+OR+必比登+OR+私房菜)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+    },
+    {
+      "name": "食尚玩家 台北特搜",
+      "url": "https://supertaste.tvbs.com.tw/rss/category/2"
+    },
+    {
+      "name": "窩客島 WalkerLand 台北美食",
+      "url": "https://www.walkerland.com.tw/rss/food"
+    }
   ]
 }
