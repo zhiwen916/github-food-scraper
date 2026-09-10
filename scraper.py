@@ -98,27 +98,43 @@ def analyze_article_with_gemini(client, title: str, summary: str, target_city: s
                     temperature=0.2
                 )
             )
-            # 強制休眠，保護免費 RPM 額度
+            
+            # 強制休眠，保護免費 RPM/RPD 額度
             time.sleep(RATE_LIMIT_DELAY)
             
-            clean_json = re.sub(r"^```json\s*", "", response.text.strip())
-            clean_json = re.sub(r"\s*```$", "", clean_json)
+            # 清理 Markdown 代碼區塊標記並解析 JSON
+            raw_text = response.text.strip() if response.text else ""
+            clean_json = re.sub(r"^```json\s*", "", raw_text)
+            clean_json = re.sub(r"\s*```$", "", clean_json).strip()
+            
+            if not clean_json:
+                return {"is_recommendation": False, "stores": []}
+
             return json.loads(clean_json)
 
         except Exception as e:
             err_msg = str(e)
             print(f"   ⚠️ Gemini 呼叫異常 (嘗試 {attempt}/{MAX_RETRIES}): {err_msg}")
             
-            # 若為 429 配額或 503 暫時不可用，採用指數退避休息
+            # 若為 429 配額限制或 503 服務端忙碌，採用指數退避
             if "429" in err_msg or "503" in err_msg:
-                backoff_time = attempt * 20
-                print(f"   ⏳ 觸發頻率限制或服務忙碌，暫停 {backoff_time} 秒後重試...")
-                time.sleep(backoff_time)
+                if attempt < MAX_RETRIES:
+                    backoff_time = attempt * 20
+                    print(f"   ⏳ 觸發頻率限制或服務忙碌，暫停 {backoff_time} 秒後重試...")
+                    time.sleep(backoff_time)
+                else:
+                    print("   ❌ 已達最大重試次數，略過此篇文章以確保爬蟲持續執行。")
+                    return {"is_recommendation": False, "stores": []}
             else:
-                time.sleep(5)
+                # 其他非頻率性錯誤（例如連線中斷或格式解析失敗），小幅等待後重試或略過
+                if attempt < MAX_RETRIES:
+                    time.sleep(5)
+                else:
+                    return {"is_recommendation": False, "stores": []}
 
-    return {"is_recommendation": false, "stores": []}
-
+    # 關鍵修正：Python 布林值首字必須大寫 False
+    return {"is_recommendation": False, "stores": []}
+    
 # ==========================================
 # 📊 Google Sheets API 連線與寫入
 # ==========================================
