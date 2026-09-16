@@ -1,8 +1,8 @@
 {
-  "TW_Taipei": [
+  "TW_ALL": [
     {
       "name": "500輯 名家專題與質感生活",
-      "url": "https://500times.udn.com/rss/news/1007"
+      "url": "https://news.google.com/rss/search?q=site:500times.udn.com+when:30d&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
     },
     {
       "name": "500盤與500碗與500甜 得獎小吃名冊",
@@ -26,23 +26,23 @@
     },
     {
       "name": "鳴人堂 飲食文化專欄",
-      "url": "https://opinion.udn.com/rss/tag/飲食"
+      "url": "https://news.google.com/rss/search?q=site:opinion.udn.com+(飲食+OR+小吃+OR+菜市)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
     },
     {
-      "name": "Podcast 美食關鍵字 (Liz 高琹雯)",
-      "url": "https://feeds.soundon.fm/podcasts/7e64cb05-89f4-43ff-88cf-3c66f50c0576.xml"
+      "name": "美食關鍵字與Taster美食加 (Liz 高琹雯)",
+      "url": "https://news.google.com/rss/search?q=site:taster.life+(美食關鍵字+OR+高琹雯+OR+評鑑)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
     },
     {
-      "name": "Podcast 舌尖上的旅行 (微笑台灣)",
-      "url": "https://feeds.soundon.fm/podcasts/08a38b58-e4b2-4d13-aa77-8cbbcb4ea779.xml"
+      "name": "舌尖上的旅行 (微笑台灣飲食專題)",
+      "url": "https://news.google.com/rss/search?q=site:smiletaiwan.cw.com.tw+(舌尖上的旅行+OR+老店+OR+小吃)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
     },
     {
-      "name": "Podcast 鏡好聽 裴社長的私房廚房",
-      "url": "https://feeds.soundon.fm/podcasts/422bda4d-80dc-4a25-9c56-7880f74a8138.xml"
+      "name": "鏡好聽 裴社長私房料理特輯",
+      "url": "https://news.google.com/rss/search?q=(site:mirrorvoice.com.tw+OR+site:mirrormedia.mg)+裴社長+私房&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
     },
     {
-      "name": "Podcast 吃史 Eat History (常民小吃)",
-      "url": "https://feed.firstory.me/rss/user/ckg82eqj39u900875e533z952"
+      "name": "吃史 Eat History (常民小吃考據)",
+      "url": "https://news.google.com/rss/search?q=%22吃史%22+(飲食+OR+小吃+OR+美食)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
     }
   ]
 }
