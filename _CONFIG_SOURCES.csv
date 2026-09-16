@@ -1,7 +1,12 @@
 大區代碼 (Region),來源名稱 (Name),RSS網址 (URL),啟用狀態 (Enabled)
-FR_Paris,Google News Paris Gastronomie,https://news.google.com/rss/search?q=(Paris)+AND+(restaurant+OR+bistrot)&hl=fr&gl=FR&ceid=FR:fr,TRUE
-IT_Centro,Google News Pienza,https://news.google.com/rss/search?q=(Pienza)+AND+(trattoria)&hl=it&gl=IT&ceid=IT:it,TRUE
-TW_Taipei,Google News 台北美食與餐廳,https://news.google.com/rss/search?q=(台北)+AND+(餐廳+OR+美食+OR+小吃)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant,TRUE
-TW_Taipei,Google News 台北米其林與必比登,https://news.google.com/rss/search?q=(台北)+AND+(米其林+OR+必比登+OR+私房菜)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant,TRUE
-TW_Taipei,食尚玩家 台北特搜,https://supertaste.tvbs.com.tw/rss/category/2,TRUE
-TW_Taipei,窩客島 WalkerLand 台北美食,https://www.walkerland.com.tw/rss/food,TRUE
+TW_ALL,500輯 名家專題與質感生活,https://news.google.com/rss/search?q=site:500times.udn.com+when:30d&hl=zh-TW&gl=TW&ceid=TW:zh-Hant,TRUE
+TW_ALL,500盤與500碗與500甜 得獎小吃名冊,https://news.google.com/rss/search?q=(500碗+OR+500盤+OR+500甜)+得獎+名單+when:30d&hl=zh-TW&gl=TW&ceid=TW:zh-Hant,TRUE
+TW_ALL,旅飯 Pantravel 風土飲食,https://pantravel.life/feed/,TRUE
+TW_ALL,商周 舒國治台北小吃札記,https://news.google.com/rss/search?q=site:businessweekly.com.tw+舒國治+台北&hl=zh-TW&gl=TW&ceid=TW:zh-Hant,TRUE
+TW_ALL,鏡週刊 裴社長吃喝玩樂專欄,https://news.google.com/rss/search?q=site:mirrormedia.mg+裴社長&hl=zh-TW&gl=TW&ceid=TW:zh-Hant,TRUE
+TW_ALL,OKAPI 飲食生活專欄,https://news.google.com/rss/search?q=site:okapi.books.com.tw+(洪愛珠+OR+番紅花+OR+比才+OR+飲食)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant,TRUE
+TW_ALL,鳴人堂 飲食文化專欄,https://news.google.com/rss/search?q=site:opinion.udn.com+(飲食+OR+小吃+OR+菜市)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant,TRUE
+TW_ALL,美食關鍵字與Taster美食加 (Liz 高琹雯),https://news.google.com/rss/search?q=site:taster.life+(美食關鍵字+OR+高琹雯+OR+評鑑)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant,TRUE
+TW_ALL,舌尖上的旅行 (微笑台灣飲食專題),https://news.google.com/rss/search?q=site:smiletaiwan.cw.com.tw+(舌尖上的旅行+OR+老店+OR+小吃)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant,TRUE
+TW_ALL,鏡好聽 裴社長私房料理特輯,https://news.google.com/rss/search?q=(site:mirrorvoice.com.tw+OR+site:mirrormedia.mg)+裴社長+私房&hl=zh-TW&gl=TW&ceid=TW:zh-Hant,TRUE
+TW_ALL,吃史 Eat History (常民小吃考據),https://news.google.com/rss/search?q=%22吃史%22+(飲食+OR+小吃+OR+美食)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant,TRUE
