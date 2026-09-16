@@ -1,24 +1,48 @@
 {
-  "FR_Paris": [
-    {
-      "name": "Google News Paris Gastronomie",
-      "url": "https://news.google.com/rss/search?q=(Paris)+AND+(restaurant+OR+bistrot)&hl=fr&gl=FR&ceid=FR:fr"
-    }
-  ],
-  "IT_Centro": [
-    {
-      "name": "Google News Pienza",
-      "url": "https://news.google.com/rss/search?q=(Pienza)+AND+(trattoria)&hl=it&gl=IT&ceid=IT:it"
-    }
-  ],
   "TW_Taipei": [
     {
-      "name": "Google News 台北美食與餐廳",
-      "url": "https://news.google.com/rss/search?q=(台北)+AND+(餐廳+OR+美食+OR+小吃)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+      "name": "500輯 名家專題與質感生活",
+      "url": "https://500times.udn.com/rss/news/1007"
     },
     {
-      "name": "Google News 台北米其林與必比登",
-      "url": "https://news.google.com/rss/search?q=(台北)+AND+(米其林+OR+必比登+OR+私房菜)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+      "name": "500盤與500碗與500甜 得獎小吃名冊",
+      "url": "https://news.google.com/rss/search?q=(500碗+OR+500盤+OR+500甜)+得獎+名單+when:30d&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+    },
+    {
+      "name": "旅飯 Pantravel 風土飲食",
+      "url": "https://pantravel.life/feed/"
+    },
+    {
+      "name": "商周 舒國治台北小吃札記",
+      "url": "https://news.google.com/rss/search?q=site:businessweekly.com.tw+舒國治+台北&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+    },
+    {
+      "name": "鏡週刊 裴社長吃喝玩樂專欄",
+      "url": "https://news.google.com/rss/search?q=site:mirrormedia.mg+裴社長&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+    },
+    {
+      "name": "OKAPI 飲食生活專欄",
+      "url": "https://news.google.com/rss/search?q=site:okapi.books.com.tw+(洪愛珠+OR+番紅花+OR+比才+OR+飲食)&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+    },
+    {
+      "name": "鳴人堂 飲食文化專欄",
+      "url": "https://opinion.udn.com/rss/tag/飲食"
+    },
+    {
+      "name": "Podcast 美食關鍵字 (Liz 高琹雯)",
+      "url": "https://feeds.soundon.fm/podcasts/7e64cb05-89f4-43ff-88cf-3c66f50c0576.xml"
+    },
+    {
+      "name": "Podcast 舌尖上的旅行 (微笑台灣)",
+      "url": "https://feeds.soundon.fm/podcasts/08a38b58-e4b2-4d13-aa77-8cbbcb4ea779.xml"
+    },
+    {
+      "name": "Podcast 鏡好聽 裴社長的私房廚房",
+      "url": "https://feeds.soundon.fm/podcasts/422bda4d-80dc-4a25-9c56-7880f74a8138.xml"
+    },
+    {
+      "name": "Podcast 吃史 Eat History (常民小吃)",
+      "url": "https://feed.firstory.me/rss/user/ckg82eqj39u900875e533z952"
     }
   ]
 }
