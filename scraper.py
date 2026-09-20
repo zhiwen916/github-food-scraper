@@ -12,7 +12,7 @@ from googleapiclient.discovery import build
 # ⚙️ 系統常數與 24h 平攤節奏配置
 # ==========================================
 # Vertex AI 標準模型名稱
-GEMINI_MODEL = "gemini-3.5-flash"
+GEMINI_MODEL = "gemini-2.5-flash"
 
 # 節奏與額度防護
 RATE_LIMIT_DELAY = 45        # 每次呼叫間隔 45 秒 (約 1.3 RPM，遠低於 15 RPM 上限)
