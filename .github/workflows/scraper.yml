@@ -25,11 +25,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Authenticate Google Credentials
+      - name: Authenticate Vertex AI
+        env:
+          GCP_KEY_DATA: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
         run: |
-          echo "${{ secrets.GOOGLE_CREDENTIALS_JSON }}" > gcp-key.json
+          echo "$GCP_KEY_DATA" > gcp-key.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/gcp-key.json" >> $GITHUB_ENV
-
+      
       - name: Run Food Scraper
         env:
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
