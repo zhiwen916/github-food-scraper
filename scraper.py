@@ -11,7 +11,8 @@ from googleapiclient.discovery import build
 # ==========================================
 # ⚙️ 系統常數與 24h 平攤節奏配置
 # ==========================================
-GEMINI_MODEL = "gemini-3.6-flash"
+# Vertex AI 標準模型名稱
+GEMINI_MODEL = "gemini-3.5-flash"
 
 # 節奏與額度防護
 RATE_LIMIT_DELAY = 45        # 每次呼叫間隔 45 秒 (約 1.3 RPM，遠低於 15 RPM 上限)
@@ -45,13 +46,6 @@ def is_food_related(title, summary):
     return any(keyword.lower() in content for keyword in FOOD_KEYWORDS)
 
 def match_target_city(region_key: str, title: str, summary: str, geo_registry: dict):
-    """
-    通用城市快篩與大區自動歸屬模組：
-    1. 若 region_key 結尾為 '_ALL'（如 TW_ALL, FR_ALL, IT_ALL），
-       自動掃描 geo_registry 中該國家的所有實際大區分頁，實現全國性來源自動歸檔。
-    2. 若為特定大區代碼（如 TW_Taipei, FR_Paris），維持單區精準快篩。
-    回傳：(matched_region, city_name, tier)
-    """
     full_text = f"{title} {summary}".lower()
 
     if region_key.endswith("_ALL"):
@@ -62,7 +56,6 @@ def match_target_city(region_key: str, title: str, summary: str, geo_registry: d
 
     for reg in target_regions:
         region_data = geo_registry.get(reg, {})
-        # 相容兩種設定檔格式（若包含頂層 "cities" 或直接列出城市字典）
         cities = region_data.get("cities", region_data)
         
         for city_name, city_info in cities.items():
@@ -73,7 +66,7 @@ def match_target_city(region_key: str, title: str, summary: str, geo_registry: d
             if city_name.lower() in full_text:
                 return reg, city_name, city_info.get("tier", "未分級")
             
-            # 2. 檢查在試算表中設定的別名或商圈地標關鍵字 (keywords / aliases)
+            # 2. 檢查在試算表中設定的別名或商圈地標關鍵字
             aliases = city_info.get("keywords", []) or city_info.get("aliases", [])
             for alias in aliases:
                 cleaned_alias = alias.strip().lower()
@@ -119,7 +112,6 @@ def analyze_article_with_gemini(client, title, summary, target_city, region_key)
                     "temperature": 0.2
                 }
             )
-            # 呼叫成功後執行節奏平攤冷卻
             time.sleep(RATE_LIMIT_DELAY)
             
             clean_text = response.text.strip()
@@ -137,10 +129,7 @@ def analyze_article_with_gemini(client, title, summary, target_city, region_key)
             
             if "429" in err_msg or "503" in err_msg:
                 if attempt < MAX_RETRIES:
-                    # 指數退避起始調整為 45 秒
                     backoff_time = attempt * 45
-                    
-                    # 嘗試捕捉 Google 回應中的 retryDelay 建議值
                     delay_match = re.search(r"retryDelay['\"]?:\s*['\"]?(\d+)s", err_msg)
                     if delay_match:
                         backoff_time = max(backoff_time, int(delay_match.group(1)) + 5)
@@ -159,6 +148,7 @@ def analyze_article_with_gemini(client, title, summary, target_city, region_key)
     return {"is_recommendation": False, "stores": []}
 
 def init_google_services():
+    # 1. 初始化 Google Sheets 服務
     creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON")
     if creds_json:
         creds_dict = json.loads(creds_json)
@@ -175,11 +165,14 @@ def init_google_services():
         raise ValueError("找不到 Google 服務帳號憑證。")
 
     sheets_service = build("sheets", "v4", credentials=creds)
-    gemini_api_key = os.environ.get("GEMINI_API_KEY")
-    if not gemini_api_key:
-        raise ValueError("未設定環境變數 GEMINI_API_KEY。")
 
-    gemini_client = genai.Client(api_key=gemini_api_key)
+    # 2. 初始化 Vertex AI Gemini 客戶端 (自動讀取 GOOGLE_APPLICATION_CREDENTIALS)
+    gemini_client = genai.Client(
+        vertexai=True,
+        project="github-food-scraper",
+        location="us-central1"
+    )
+
     return sheets_service, gemini_client
 
 def append_to_sheet(service, spreadsheet_id, sheet_name, row_values):
@@ -242,7 +235,6 @@ def main():
                 print(f"   ❌ RSS 連線失敗，略過: {e}")
                 continue
 
-            # 擴充讀取每個來源最新 10 篇文章
             for entry in feed.entries[:MAX_ENTRIES_PER_FEED]:
                 title = getattr(entry, "title", "").strip()
                 summary = getattr(entry, "summary", "").strip()
@@ -253,16 +245,13 @@ def main():
 
                 total_scraped += 1
 
-                # 本地快篩 1：餐飲美食關鍵字過濾 (0 額度消耗)
                 if not is_food_related(title, summary):
                     continue
 
-                # 本地快篩 2：動態大區與目標城市白名單判定 (0 額度消耗)
                 matched_region, target_city, target_tier = match_target_city(region_key, title, summary, geo_registry)
                 if not matched_region:
                     continue
 
-                # 每小時額度熔斷保護
                 if gemini_call_count >= MAX_CALLS_PER_RUN:
                     print(f"\n☕ 已達本小時安全分析上限 ({MAX_CALLS_PER_RUN} 次)，結束本輪，等待下個小時排程。")
                     circuit_broken = True
@@ -282,22 +271,20 @@ def main():
                         if not store_name:
                             continue
 
-                        # 組裝標準資料列，A 欄使用動態判定的 matched_region
                         row_data = [
-                            matched_region,              # A: 動態大區 (如 TW_South, FR_SudOuest)
-                            target_tier,                 # B: 城市等級
-                            target_city,                 # C: 城市/市鎮
-                            store_name,                  # D: 店名
-                            store.get("category", ""),   # E: 類別
-                            store.get("must_try", ""),   # F: 必點招牌
-                            store.get("badge", ""),      # G: 認證標章
-                            store.get("tip", ""),        # H: 探訪秘訣
-                            store.get("address", ""),    # I: 地址
-                            link,                        # J: 來源連結
-                            today_str                    # K: 抓取日期
+                            matched_region,
+                            target_tier,
+                            target_city,
+                            store_name,
+                            store.get("category", ""),
+                            store.get("must_try", ""),
+                            store.get("badge", ""),
+                            store.get("tip", ""),
+                            store.get("address", ""),
+                            link,
+                            today_str
                         ]
                         
-                        # 寫入試算表動態對應的目標分頁（而非固定寫入 region_key）
                         append_to_sheet(sheets_service, spreadsheet_id, matched_region, row_data)
                         total_accepted += 1
 
