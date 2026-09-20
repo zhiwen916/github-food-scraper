@@ -93,6 +93,36 @@
       "date": "2026-09-20",
       "lat": 23.000149,
       "lng": 120.206246
+    },
+    {
+      "region": "TW_South",
+      "tier": "一級",
+      "city": "台南古都 (Tainan)",
+      "name": "Mo. Lab",
+      "category": "義式私廚",
+      "must_try": "",
+      "badge": "",
+      "tip": "預約困難，需提早預訂",
+      "address": "台南",
+      "link": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE05RW5aM3dXcjFnWDBwTE1BZW5FQlZITXdVNnVpZVZQR1k4ZHNiYWVVZ2FGN2xsNGNwVHFJRTYyM3hDMVhyM1V3X2JucTdLazFT?oc=5",
+      "date": "2026-09-20",
+      "lat": 22.9999,
+      "lng": 120.226876
+    },
+    {
+      "region": "TW_South",
+      "tier": "一級",
+      "city": "台南古都 (Tainan)",
+      "name": "Mo. Lab",
+      "category": "義式私廚",
+      "must_try": "",
+      "badge": "",
+      "tip": "預約困難，需提前預訂",
+      "address": "台南市",
+      "link": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE05RW5aM3dXcjFnWDBwTE1BZW5FQlZITXdVNnVpZVZQR1k4ZHNiYWVVZ2FGN2xsNGNwVHFJRTYyM3hDMVhyM1V3X2JucTdLazFT?oc=5",
+      "date": "2026-09-20",
+      "lat": 22.9999,
+      "lng": 120.226876
     }
   ]
 }
