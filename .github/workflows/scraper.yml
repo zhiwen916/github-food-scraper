@@ -25,9 +25,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Authenticate Google Credentials
+        run: |
+          echo "${{ secrets.GOOGLE_CREDENTIALS_JSON }}" > gcp-key.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/gcp-key.json" >> $GITHUB_ENV
+
       - name: Run Food Scraper
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
           GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
         run: |
